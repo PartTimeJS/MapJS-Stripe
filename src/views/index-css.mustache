@@ -25,6 +25,14 @@
     background: none;
     max-height: 20px;
 }
+.leaflet-container a.leaflet-popup-close-button {
+  width: 28px;
+  height: 28px;
+}
+
+.leaflet-control-locate-location circle {
+    animation: none !important;
+}
 
 table.dataTable tbody td {
     text-align: center;
@@ -195,6 +203,18 @@ fieldset[disabled] .btn-size.active {
     font-weight: bold;
 }
 
+.invasion-timer {
+    background-color: gray;
+    border-radius: .25rem !important;
+    color: white;
+    font-weight: bold;
+    font: bold 12px, Monaco, monospace;
+    border: none;
+    border-color: none;
+    box-shadow: none;
+    max-height: 20px;
+}
+
 .center-vertical {
     margin-top: auto;
     margin-bottom: auto;
@@ -235,6 +255,15 @@ fieldset[disabled] .btn-size.active {
 }
 .team-neutral {
     border: 4px solid gray;
+}
+
+@media (max-height: 600px) {
+    .fill {
+        top: 0;
+    }
+    .navbar {
+        display: none;
+    }
 }
 
 

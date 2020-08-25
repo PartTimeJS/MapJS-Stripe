@@ -4,23 +4,32 @@ const path = require('path');
 const csrf = require('csurf');
 const cookieParser = require('cookie-parser');
 const express = require('express');
-const session = require('express-session');
+const cookieSession = require('cookie-session')
 const app = express();
 const mustacheExpress = require('mustache-express');
 const i18n = require('i18n');
+const helmet = require('helmet');
 
 const config = require('./config.json');
 const defaultData = require('./data/default.js');
 const apiRoutes = require('./routes/api.js');
 const discordRoutes = require('./routes/discord.js');
 const uiRoutes = require('./routes/ui.js');
-const utils = require('./services/utils.js');
 
-// TODO: Finish pokemon iv filter
-// TODO: Permissions
-// TODO: submission_placement_cells
-// TODO: submission_placement_rings
-// TODO: submission_type_cells
+// TODO: Separate cluster layers by type
+// TODO: Use api endpoint for each model type instead of one for all. Update and clear based on layers of types
+// TODO: Notification sounds, bouncing icons
+// TODO: Possibly change filter selection from a list to a grid
+// TODO: Finish custom user settings modal
+// TODO: Force logout of other devices if logged into multiple
+// TODO: Glow for top pvp ranks
+// TODO: Only clear layers if filter changed
+// TODO: Reset all settings (clear cache/session)
+// TODO: Filter candy/stardust quest by amount
+// TODO: Icon spacing
+
+// Basic security protection middleware
+app.use(helmet());
 
 // View engine
 app.set('view engine', 'mustache');
@@ -31,8 +40,8 @@ app.engine('mustache', mustacheExpress());
 app.use(express.static(path.resolve(__dirname, '../static')));
 
 // Body parser middlewares
-app.use(express.json());
-app.use(express.urlencoded({ extended: false, limit: '50mb' })); // for parsing application/x-www-form-urlencoded
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: false, limit: '500mb' }));
 
 // Initialize localzation handler
 i18n.configure({
@@ -42,11 +51,11 @@ i18n.configure({
 app.use(i18n.init);
 
 // Register helper as a locals function wrroutered as mustache expects
-app.use(function(req, res, next) {
+app.use((req, res, next) => {
     // Mustache helper
-    res.locals.__ = function() {
+    res.locals.__ = () => {
         /* eslint-disable no-unused-vars */
-        return function(text, render) {
+        return (text, render) => {
         /* eslint-enable no-unused-vars */
             return i18n.__.routerly(req, arguments);
         };
@@ -58,16 +67,16 @@ app.use(function(req, res, next) {
 i18n.setLocale(config.locale);
 
 // Sessions middleware
-app.use(session({
-    secret: utils.generateString(),
-    resave: true,
-    saveUninitialized: true
+app.use(cookieSession({
+    name: 'session',
+    keys: [config.sessionSecret],
+    maxAge: 518400000
 }));
 
 // CSRF token middleware
 app.use(cookieParser());
 app.use(csrf({ cookie: true }));
-app.use(function(req, res, next) {
+app.use((req, res, next) => {
     var csrf = req.csrfToken();
     defaultData.csrf = csrf;
     //console.log("CSRF Token:", csrf);
@@ -82,7 +91,7 @@ if (config.discord.enabled) {
 
     // Discord error middleware
     /* eslint-disable no-unused-vars */
-    app.use(function(err, req, res, next) {
+    app.use((err, req, res, next) => {
         switch (err.message) {
         case 'NoCodeProvided':
             return res.status(400).send({
@@ -100,37 +109,43 @@ if (config.discord.enabled) {
 }
 
 // Login middleware
-app.use(function(req, res, next) {
+app.use(async (req, res, next) => {
     if (config.discord.enabled && (req.path === '/api/discord/login' || req.path === '/login')) {
-        return next();
-    }
-    if (req.session.user_id && req.session.username && req.session.guilds && req.session.roles) {
-        //console.log("Previous discord auth still active for user id:", req.session.user_id);
         return next();
     }
     if (!config.discord.enabled || req.session.logged_in) {
         defaultData.logged_in = true;
         defaultData.username = req.session.username;
-        //const id = req.session.user_id;
-        const guilds = req.session.guilds;
-        const roles = req.session.roles;
-        if (utils.hasGuild(guilds)) {
-            defaultData.hide_map = !utils.hasRole(roles, config.discord.perms.map.roles);
-            defaultData.hide_pokemon = !utils.hasRole(roles, config.discord.perms.pokemon.roles);
-            defaultData.hide_raids = !utils.hasRole(roles, config.discord.perms.raids.roles);
-            defaultData.hide_gyms = !utils.hasRole(roles, config.discord.perms.gyms.roles);
-            defaultData.hide_pokestops = !utils.hasRole(roles, config.discord.perms.pokestops.roles);
-            defaultData.hide_quests = !utils.hasRole(roles, config.discord.perms.quests.roles);
-            defaultData.hide_lures = !utils.hasRole(roles, config.discord.perms.lures.roles);
-            defaultData.hide_invasions = !utils.hasRole(roles, config.discord.perms.invasions.roles);
-            defaultData.hide_spawnpoints = !utils.hasRole(roles, config.discord.perms.spawnpoints.roles);
-            defaultData.hide_iv = !utils.hasRole(roles, config.discord.perms.iv.roles);
-            defaultData.hide_s2cells = !utils.hasRole(roles, config.discord.perms.s2cells.roles);
-            defaultData.hide_submissionCells = !utils.hasRole(roles, config.discord.perms.submissionCells.roles);
-            defaultData.hide_nests = !utils.hasRole(roles, config.discord.perms.nests.roles);
-            defaultData.hide_weather = !utils.hasRole(roles, config.discord.perms.weather.roles);
-            defaultData.hide_devices = !utils.hasRole(roles, config.discord.perms.devices.roles);
+        if (!config.discord.enabled) {
+            return next();
         }
+        if (!req.session.valid) {
+            console.error('Invalid user authenticated', req.session.user_id);
+            res.redirect('/login');
+            return;
+        }
+        const perms = req.session.perms;
+        defaultData.hide_map = !perms.map;
+        if (defaultData.hide_map) {
+            // No view map permissions, go to login screen
+            console.error('Invalid view map permissions for user', req.session.user_id);
+            res.redirect('/login');
+            return;
+        }
+        defaultData.hide_pokemon = !perms.pokemon;
+        defaultData.hide_raids = !perms.raids;
+        defaultData.hide_gyms = !perms.gyms;
+        defaultData.hide_pokestops = !perms.pokestops;
+        defaultData.hide_quests = !perms.quests;
+        defaultData.hide_lures = !perms.lures;
+        defaultData.hide_invasions = !perms.invasions;
+        defaultData.hide_spawnpoints = !perms.spawnpoints;
+        defaultData.hide_iv = !perms.iv;
+        defaultData.hide_cells = !perms.s2cells;
+        defaultData.hide_submission_cells = !perms.submissionCells;
+        defaultData.hide_nests = !perms.nests;
+        defaultData.hide_weather = !perms.weather;
+        defaultData.hide_devices = !perms.devices;
         return next();
     }
     res.redirect('/login');
