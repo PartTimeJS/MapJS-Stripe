@@ -41,12 +41,6 @@
     },
     "areas": {
         "test": { "lat": 4.01, "lon": 117.01, "zoom": 15 }
-
-
-
-
-
-
     },
     "header": {
         "left": [
