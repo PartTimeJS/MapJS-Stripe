@@ -2,7 +2,7 @@
 'use strict';
 
 const config = require('../config.json');
-
+const stripe = require('./stripe.js');
 const DiscordOauth2 = require('discord-oauth2');
 const oauth = new DiscordOauth2();
 
