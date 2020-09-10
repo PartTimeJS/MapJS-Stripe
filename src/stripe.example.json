@@ -1,0 +1,59 @@
+{
+    "url": "https://place.com",
+  
+    "donor_welcome": true,
+    "donor_welcome_content": "Welcome and Thank You, %usertag%!",
+  
+    "map_log": true,
+    "stripe_log": true,
+  
+    "fetch_bans": true,
+    "blacklist": [],
+  
+    "exclusion_ids": [],
+    "exclusion_site": "https://nianticlabs.com/terms/en/",
+  
+    "db": {
+      "host": "",
+      "port": 3306,
+      "username": "",
+      "password": "",
+      "database": "",
+      "charset": "utf8mb4"
+    },
+  
+    "discord": {
+      "client_id": "71853464567454115448",
+      "client_secret": "xVKUpYeow3567y4w555yQG4WRmQL",
+      "token": "NzE4NTQ5NjUse54u6d5jhsertgegrq43y3ycHME0j3PveY"
+    },
+  
+    "stripe": {
+      "test_plan_id": "price_1Gzaes45yh5esrgt5z6QGk9",
+  
+      "live_pk": "pk_live_SS4gVumGse5rw4uy56eehhw545ZZuveKA",
+      "test_pk": "pk_test_eLLF543erahgtr5h6rs7aZh",
+  
+      "live_sk": "sk_live_CfUOw645876rijusrhN00xwXpvpjt",
+      "test_sk": "sk_test_9eV54765eusgtgbc2bE"
+    },
+  
+    "discords": [{
+        "name": "city",
+        "subdomain": "",
+        "id": "",
+        "plan_id": "",
+        "plan_cost": "4.99",
+        "log_channel": ""
+      },
+      {
+        "name": "city",
+        "subdomain": "",
+        "id": "",
+        "plan_id": "",
+        "plan_cost": "4.99",
+        "log_channel": ""
+      }
+    ]
+  }
+  
