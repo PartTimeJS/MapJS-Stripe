@@ -1,37 +1,26 @@
-const ini = require('ini');
 const moment = require('moment');
 const fs = require('fs');
 
-const config = ini.parse(fs.readFileSync('files/config.ini', 'utf-8'));
+const config = require('../stripe.json');
+//const config = require('../config.json');
 
 const MySQLConnector = require('./mysql.js');
-const db = new MySQLConnector(config.db.scanner);
+const db = new MySQLConnector(config.db);
 
-const stripe = require('stripe')(config.STRIPE.live_sk);
-const Discord = require('discord.js');
+const stripe = require('stripe')(config.stripe.live_sk);
 
-const client = new Discord.Client();
-
-if (config.discord.enabled) {
-    client.on('ready', () => {
-        console.log(`Logged in as ${client.user.tag}!`);
-            client.user.setPresence({ activity: { name: config.discord.status, type: 3 }
-        });
-    });
-  
-    client.login(config.discord.botToken);
-}
+const DiscordClient = require('../services/discord.js');
 
 class StripeCustomer {
 
-  constructor(user_id, user_name, guild_id, customer_id, subscription_id, plan_id) {
+
+  constructor(user_id, user_name, customer_id, subscription_id, plan_id, email) {
     this.user_id = user_id;
     this.user_name = user_name;
-    this.guild_id = guild_id;
     this.customer_id = customer_id;
     this.subscription_id = subscription_id;
     this.plan_id = plan_id;
-    this.name = name;
+    this.email = email;
   }
 
 
@@ -325,7 +314,7 @@ let user_table = `
 `;
 
 db.query(user_table).catch(err => {
-  console.error('Failed to execute query:', sql, '\r\n:Error:', err);
+  console.error('Failed to execute query:', user_table, '\r\n:Error:', err);
 });
 
 

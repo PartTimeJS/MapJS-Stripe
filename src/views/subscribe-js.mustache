@@ -1,0 +1,27 @@
+var PUBLISHABLE_KEY = '{{key}}';
+var plan_id = '{{plan}}';
+var user_id = '{{user_id}}';
+var user_name = '{{user_name}}';
+var refId = user_name + ' - ' + user_id;
+var DOMAIN = location.href.replace(/[^/]*$/, '');
+const stripe = Stripe(PUBLISHABLE_KEY);
+
+var handleResult = function (result) {
+    if (result.error) {
+        var displayError = document.getElementById('error-message');
+        displayError.textContent = result.error.message;
+    }
+}
+document.getElementById('Create').addEventListener('click', function (e) {
+    stripe.redirectToCheckout({
+        mode: e.target.dataset.checkoutMode,
+        lineItems: [{
+            price: e.target.dataset.priceId,
+            quantity: 1
+        }],
+        successUrl: DOMAIN + `success?session_id={CHECKOUT_SESSION_ID}&plan_id=${plan_id}&user_id=${user_id}`,
+        cancelUrl: DOMAIN + 'subscribe',
+        customerEmail: '{{email}}',
+        clientReferenceId: refId,
+    }).then(handleResult);
+});

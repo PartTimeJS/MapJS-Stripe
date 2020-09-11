@@ -1,0 +1,43 @@
+{{> header}}
+{{> navbar}}
+
+    <script src="https://js.stripe.com/v3/"></script>
+    <link href="/subscribe.css" rel="stylesheet">
+    <script src="/subscribe.js" type="text/javascript"></script>
+
+    <div>
+        <center>
+            <div>
+                <h2>Gold Star Trainer Status</h2>
+                <button id="Create" class="subscribeButton" data-checkout-mode="subscription" data-price-id="<%= plan %>"> Donate $<%= amt/100 %>/mo </button>
+                <div class="information">
+                    <p>
+                    The above button will redirect you to a secure Stripe checkout page.<br>
+                    Cancel anytime from this same URL or from the Map Account Management Button.
+                    </p>
+                    <h3>This recurring donation will give you access to:</h3>
+                    <p>
+                    >>> Full and Detailed Map <<< <br>
+                    >>> Discord DM Alerts for anything and everything. <<< <br>
+                    >>> Pre-Set Discord Feeds for Raids, Pokemon, and Quests. <<< <br>
+                    </p>
+                </div>
+            </div>
+            <br>
+            <hr>
+            <div class="content">
+                <br>
+                <div class="fineprint">
+                    <p>Refunds may be given upon request for dissatisfaction of serice within 7 days.</p>
+                    <p>We NEVER receive, store, or view any sensitive customer credit card information.  All of our credit card processing is managed directly and solely by Stripe, a PCI Level 1 Compliant Service Provider.</p>
+                    <a href=https://stripe.com/docs/security/stripe>https://stripe.com/docs/security/stripe</a>
+                    <p>Do not redistribute data outside of donor channels. Doing so will result in immediate revokation of all access. Due to the nature of these services, there are no guarantees or refunds for donations. <%= map_name %> is a Non-Profit service.</p>
+                    <p>We are not associated with Niantic, ThePokemonCompany, or any of it"s subsidiaries.</p>
+                    <p><strong>All spawn locations, POIs, and data are "crowd-sourced" by the community.</strong></p>
+                    <br>
+                </div>
+            </div>
+        </center>
+    </div>
+
+{{> footer}}
