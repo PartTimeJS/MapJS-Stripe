@@ -113,7 +113,7 @@ app.use(async (req, res, next) => {
         }
         if (!req.session.valid) {
             console.error('Invalid user authenticated', req.session.user_id);
-            res.redirect('/login');
+            res.redirect('/subscribe'); //res.redirect('/login');
             return;
         }
         const perms = req.session.perms;
