@@ -4,7 +4,7 @@ const i18n = require('i18n');
 const express = require('express');
 const router = express.Router();
 
-const config = require('../config.json');
+const config = require('../services/config.js');
 const map = require('../data/map.js');
 const utils = require('../services/utils.js');
 
@@ -26,6 +26,98 @@ router.post('/search', async (req, res) => {
     res.json({ data: data });
 });
 
+router.get('/get_settings', async (req, res) => {
+    const data = getSettings();
+    res.json({ data: data });
+});
+
+const getSettings = () => {
+    let data = {};
+    let settingsData = [];
+    //const settingColorString = i18n.__('settings_color');
+    const pokemonSettingsString = i18n.__('filter_pokemon');
+    const pokemonGlowString = i18n.__('settings_pokemon_glow');
+    const clusterPokemonString = i18n.__('settings_cluster_pokemon');
+    const gymSettingsString = i18n.__('filter_gyms');
+    const clusterGymsString = i18n.__('settings_cluster_gyms');
+    const pokestopSettingsString = i18n.__('filter_pokestops');
+    const clusterPokestopsString = i18n.__('settings_cluster_pokestops');
+    const nestSettingsString = i18n.__('filter_nests');
+    const nestPolygonsString = i18n.__('settings_nest_polygons');
+
+    /*
+    const glowColorLabel = `
+    <label class="btn btn-sm btn-size select-button-new" data-id="pokemon-glow" data-type="pokemon-glow" data-info="color">
+        <input type="radio" name="options" id="color" autocomplete="off">${settingColorString}
+    </label>
+    `;
+    */
+    settingsData.push({
+        'id': {
+            'sort': 0
+        },
+        'name': pokemonGlowString,
+        'filter': generateShowHideButtons('pokemon-glow', 'pokemon-glow'),//, glowColorLabel),
+        'type': pokemonSettingsString
+    });
+    settingsData.push({
+        'id': {
+            'sort': 1
+        },
+        'name': clusterPokemonString,
+        'filter': generateShowHideButtons('pokemon-cluster', 'pokemon-cluster'),
+        'type': pokemonSettingsString
+    });
+    settingsData.push({
+        'id': {
+            'sort': 10
+        },
+        'name': clusterGymsString,
+        'filter': generateShowHideButtons('gym-cluster', 'gym-cluster'),
+        'type': gymSettingsString
+    });
+    settingsData.push({
+        'id': {
+            'sort': 20
+        },
+        'name': clusterPokestopsString,
+        'filter': generateShowHideButtons('pokestop-cluster', 'pokestop-cluster'),
+        'type': pokestopSettingsString
+    });
+    settingsData.push({
+        'id': {
+            'sort': 30
+        },
+        'name': nestPolygonsString,
+        'filter': generateShowHideButtons('nest-polygon', 'nest-polygon'),
+        'type': nestSettingsString
+    });
+    /*
+    settingsData.push({
+        'id': {
+            'formatted': utils.zeroPad(1, 3),
+            'sort': 1
+        },
+        'name': 'Glow Color',
+        'image': '<img class="lazy_load" data-src="/img/spawnpoint/1.png" style="height:50px; width:50px">',
+        'filter': generateTextBox('glow-color', 'pokemon-glow'),
+        'type': pokemonSettingsLabel
+    });
+    settingsData.push({
+        'id': {
+            'formatted': utils.zeroPad(2, 3),
+            'sort': 2
+        },
+        'name': 'Minimum IV Glow',
+        'image': '<img class="lazy_load" data-src="/img/spawnpoint/1.png" style="height:50px; width:50px">',
+        'filter': generateShowHideButtons('glow-iv', 'pokemon-glow'),
+        'type': pokemonSettingsLabel
+    });
+    */
+    data['settings'] = settingsData;
+
+    return data;
+};
 
 const getData = async (perms, filter) => {
     //console.log('Filter:', filter);
@@ -209,7 +301,7 @@ const getData = async (perms, filter) => {
 
         const bigKarpString = i18n.__('filter_big_karp');
         const tinyRatString = i18n.__('filter_tiny_rat');
-        for (var i = 0; i <= 1; i++) {
+        for (let i = 0; i <= 1; i++) {
             const id = i === 0 ? 'big_karp' : 'tiny_rat';            
             const filter = generateShowHideButtons(id, 'pokemon-size');
             const sizeString = i === 0 ? bigKarpString : tinyRatString;
@@ -736,7 +828,7 @@ const getData = async (perms, filter) => {
     if (permViewMap && showWeatherFilter) {
         const weatherOptionsString = i18n.__('filter_weather_options');
         let weatherData = [];
-        for (i = 1; i <= 7; i++) {
+        for (let i = 1; i <= 7; i++) {
             const weatherNameString = i18n.__('weather_' + i);
             weatherData.push({
                 'id': {
