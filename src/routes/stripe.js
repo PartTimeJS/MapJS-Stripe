@@ -10,7 +10,7 @@ const defaultData = require('../data/default.js');
 const DiscordClient = require('../services/discord.js');
 //const utils = require('../services/utils.js');
 
-const config = require('../stripe.json');
+const config = require('../configs/stripe.json');
 
 const catchAsyncErrors = fn => ((req, res, next) => {
     const routePromise = fn(req, res, next);

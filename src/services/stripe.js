@@ -1,7 +1,7 @@
 const moment = require('moment');
 const fs = require('fs');
 
-const config = require('../stripe.json');
+const config = require('../configs/stripe.json');
 //const config = require('../config.json');
 
 const MySQLConnector = require('./mysql.js');
@@ -10,8 +10,6 @@ const db = new MySQLConnector(config.db);
 const stripe = require('stripe')(config.stripe.live_sk);
 
 const DiscordClient = require('../services/discord.js');
-<<<<<<< HEAD
-=======
 
 class StripeCustomer {
 
@@ -43,8 +41,6 @@ class StripeCustomer {
     }
 
 
-
-
     createSession(user) {
         return new Promise(async function(resolve) {
             stripe.checkout.sessions.create({
@@ -72,27 +68,6 @@ class StripeCustomer {
             );
         });
     }
->>>>>>> 3ea8d726ba4680bfebd94a2bc1ca9414a426e9d2
-
-
-<<<<<<< HEAD
-
-  constructor(user_id, user_name, customer_id, subscription_id, plan_id, email) {
-    this.user_id = user_id;
-    this.user_name = user_name;
-    this.customer_id = customer_id;
-    this.subscription_id = subscription_id;
-    this.plan_id = plan_id;
-    this.email = email;
-  }
-=======
-    async retrieveSession(session_id) {
-        return new Promise(async function(resolve) {
-            let session = await stripe.checkout.sessions.retrieve(session_id);
-            return resolve(session);
-        });
-    }
->>>>>>> 3ea8d726ba4680bfebd94a2bc1ca9414a426e9d2
 
 
     async retrieveSetupIntent(setup_intent) {
