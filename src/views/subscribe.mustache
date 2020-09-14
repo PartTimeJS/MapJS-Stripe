@@ -1,16 +1,59 @@
 {{> header}}
 {{> navbar}}
+    <head>
+        <script src="https://js.stripe.com/v3/"></script>
+    </head>
 
-<<<<<<< HEAD
-    <script src="https://js.stripe.com/v3/"></script>
-    <link href="/subscribe.css" rel="stylesheet">
-    <script src="/subscribe.js" type="text/javascript"></script>
+    <style>
+        .content {
+            max-width: 480px;
+            margin: auto;
+            text-align: center;
+        }
+        .information {
+            font-size: 10pt;
+        }
+        .fineprint {
+            font-size: 8pt;
+        }
+        body {
+            margin: 50px auto;
+            background-color: #F6F6F6;
+            text-align: center;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        .subscribeButton {
+            box-shadow: 0px 10px 16px -7px #9acc85;
+            background:linear-gradient(to bottom, #74ad5a 5%, #68a54b 100%);
+            background-color:#74ad5a;
+            border-radius:10px;
+            border:2px solid #3b6e22;
+            display:inline-block;
+            cursor:pointer;
+            color:#ffffff;
+            font-family:Arial;
+            font-size:18px;
+            font-weight:bold;
+            padding:8px 16px;
+            text-decoration:none;
+            text-shadow:0px 1px 0px #92b879;
+        }
+        .subscribeButton:hover {
+            background:linear-gradient(to bottom, #68a54b 5%, #74ad5a 100%);
+            background-color:#68a54b;
+        }
+        .subscribeButton:active {
+            position:relative;
+            top:1px;
+        }
+    </style>
 
     <div>
         <center>
             <div>
+                <h2>{{map_name}}</h2>
                 <h2>Gold Star Trainer Status</h2>
-                <button id="Create" class="subscribeButton" data-checkout-mode="subscription" data-price-id="<%= plan %>"> Donate $<%= amt/100 %>/mo </button>
+                <button id="Create" class="subscribeButton" data-checkout-mode="subscription" data-price-id="{{plan_id}}"> Donate ${{amt}}/mo </button>
                 <div class="information">
                     <p>
                     The above button will redirect you to a secure Stripe checkout page.<br>
@@ -24,6 +67,38 @@
                     </p>
                 </div>
             </div>
+
+            <script type="text/javascript">
+                const plan_id = '{{plan_id}}';
+                console.log(plan_id)
+                const user_id = '{{user_id}}';
+                const user_name = '{{user_name}}';
+                const user_email = '{{email}}';
+                const reference_id = user_name + ' - ' + user_id;
+                const domain = location.href.replace(/[^/]*$/, '');
+                const stripe = Stripe('{{key}}');
+
+                var handleResult = function (result) {
+                    if (result.error) {
+                        var displayError = document.getElementById('error-message');
+                        displayError.textContent = result.error.message;
+                    }
+                }
+                document.getElementById('Create').addEventListener('click', function (e) {
+                    stripe.redirectToCheckout({
+                        mode: e.target.dataset.checkoutMode,
+                        lineItems: [{
+                            price: e.target.dataset.priceId,
+                            quantity: 1
+                        }],
+                        successUrl: domain + `success?session_id={CHECKOUT_SESSION_ID}&plan_id=${plan_id}&user_id=${user_id}`,
+                        cancelUrl: domain + 'subscribe',
+                        customerEmail: user_email,
+                        clientReferenceId: reference_id,
+                    }).then(handleResult);
+                });
+            </script>
+
             <br>
             <hr>
             <div class="content">
@@ -42,5 +117,3 @@
     </div>
 
 {{> footer}}
-=======
->>>>>>> 3ea8d726ba4680bfebd94a2bc1ca9414a426e9d2

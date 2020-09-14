@@ -10,11 +10,12 @@ const mustacheExpress = require('mustache-express');
 const i18n = require('i18n');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-
+const DiscordClient = require('./services/discord.js');
 const config = require('./services/config.js');
 const defaultData = require('./data/default.js');
 const apiRoutes = require('./routes/api.js');
 const discordRoutes = require('./routes/discord.js');
+const stripeRoutes = require('./routes/stripe.js');
 const uiRoutes = require('./routes/ui.js');
 const { sessionStore, isValidSession, clearOtherSessions } = require('./services/session-store.js');
 
@@ -124,8 +125,13 @@ if (config.discord.enabled) {
     /* eslint-enable no-unused-vars */
 }
 
+app.use('/api/stripe', stripeRoutes);
+
 // Login middleware
 app.use(async (req, res, next) => {
+    if (config.discord.enabled && (req.path === '/api/stripe/subscribe' || req.path === '/subscribe')) {
+        return next();
+    }
     if (config.discord.enabled && (req.path === '/api/discord/login' || req.path === '/login')) {
         return next();
     }
@@ -144,16 +150,17 @@ app.use(async (req, res, next) => {
             }
         }
         if (!req.session.valid) {
-            console.error('Invalid user authenticated', req.session.user_id);
+            console.error('[index.js] Invalid user authenticated', req.session.user_id);
             res.redirect('/subscribe'); //res.redirect('/login');
             return;
         }
         const perms = req.session.perms;
+        //defaultData.hide_map = perms.map ? await DiscordClient.checkMapRoles(req.get('host'), req.session.user_id) : !perms.map;
         defaultData.hide_map = !perms.map;
         if (defaultData.hide_map) {
             // No view map permissions, go to login screen
-            console.error('Invalid view map permissions for user', req.session.user_id);
-            res.redirect('/login');
+            console.error('[index.js] Invalid view map permissions for user', req.session.user_id);
+            res.redirect('/subscribe');
             return;
         }
         defaultData.hide_pokemon = !perms.pokemon;

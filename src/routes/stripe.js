@@ -7,10 +7,13 @@ const bodyParser = require('body-parser');
 
 const defaultData = require('../data/default.js');
 
-const DiscordClient = require('../services/discord.js');
+const config = require('../configs/stripe.json');
+
+const StripeClient = require('../services/stripe.js');
 //const utils = require('../services/utils.js');
 
-const config = require('../configs/stripe.json');
+const MySQLConnector = require('../services/mysql.js');
+const db = new MySQLConnector(config.db);
 
 const catchAsyncErrors = fn => ((req, res, next) => {
     const routePromise = fn(req, res, next);
@@ -19,18 +22,19 @@ const catchAsyncErrors = fn => ((req, res, next) => {
     }
 });
 
-router.get('/subscribe', (req, res) => {
+router.get('/subscribe', async (req, res) => {
 
-    let url = req.protocol + '://' + req.get('host') + req.originalUrl,
-        discord = false,
-        session = false;
+    let discord = false;
 
     for(let d = 0, dlen = config.discords.length; d < dlen; d++){
-        discord = url.indexOf(config.discords[d].subdomain) ? config.discords[d] : false;
+        if(req.get('host').includes(config.discords[d].subdomain + ".")){
+            discord = config.discords[d]; break;
+        }
     }
+
     if(discord){
 
-        let user_found = db.query(`
+        let user_found = await db.query(`
             SELECT
                 *
             FROM
@@ -38,50 +42,42 @@ router.get('/subscribe', (req, res) => {
             WHERE
                 user_id = '${req.session.user_id}';
         `);
+
+        req.session.map_name = (discord.name + 'PokéMap');
+        req.session.key = discord.test_pk ? discord.test_pk :config.stripe.live_pk;
+        req.session.map_url = req.protocol + '://' + req.get('host');
+        req.session.plan_id = discord.plan_id;
+        req.session.amt = discord.plan_cost;
+
         if(user_found && user_found[0]){
 
-            const user = new StripeCustomer(
-                req.session.user_id,
-                req.session.username,
-                req.session.email,
-                req.protocol + '://' + req.get('host'),
-                discord.plan_id,
-                user_found[0].cust_id ? user_found[0].cust_id : null,
-                user_found[0].sub_id ? user_found[0].sub_id : null,
-            );
+            req.session.customer_id = user_found[0].cust_id ? user_found[0].cust_id : null;
+            req.session.subscription_id = user_found[0].sub_id ? user_found[0].sub_id : null;    
 
-            console.log(StripeCustomer.customerID + ' ' + StripeCustomer.subscriptionID);
+            const StripeCustomer = new StripeClient(req.session);
+
+            console.log(StripeCustomer);
 
             if(StripeCustomer.customerID && StripeCustomer.subscriptionID){
 
-                let session = await StripeCustomer.createSession();
+                req.session.session_id = await StripeCustomer.createSession();
+
+                req.session.subscription = await StripeCustomer.getSubscription();
                 
                 if (session.status == 'error') {
                     console.error(session.error);
-                    res.render(__dirname + '/html/generalError.html');
-
+                    res.render('generalError.html', req.session);
                 } else {
-                    res.render(__dirname + '/html/modify.html', {
-                        map_name: (discord.name + 'PokéMap'),
-                        key: config.live_pk,
-                        plan: discord.plan_id,
-                        user_id: user.user_id,
-                        user_name: user.user_name,
-                        email: user.email,
-                        session: session.id
-                    });
+                    res.render('account', req.session);
                 }
 
             } else {
-                res.render(__dirname + '/html/subscribe.html', {
-                    map_name: (discord.name + 'PokéMap'),
-                    key: config.live_pk,
-                    plan: discord.plan_id,
-                    user_id: user.user_id,
-                    user_name: user.user_name,
-                    email: user.email,
-                    amt: 499
-                });
+
+                
+
+                //req.session.next_payment = subscription.
+
+                res.render('subscribe', req.session);
             }
 
         } else {
@@ -101,7 +97,8 @@ router.get('/subscribe', (req, res) => {
                     );
             `;
             await db.query(user_insert);
-            res.redirect('/subscribe');
+            console.log('redirecting back to subscribe')
+            res.redirect('/api/stripe/subscribe');
         }
 
     } else {

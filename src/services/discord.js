@@ -2,7 +2,7 @@
 'use strict';
 
 const config = require('../services/config.js');
-const stripe = require('./stripe.js');
+const stripeConfig = require('../configs/stripe.json');
 const DiscordOauth2 = require('discord-oauth2');
 const oauth = new DiscordOauth2();
 
@@ -56,7 +56,7 @@ class DiscordClient {
         return [];
     }
 
-    async getPerms() {
+    async getPerms(user, host) {
         const perms = {
             map: false,
             pokemon: false,
@@ -76,7 +76,7 @@ class DiscordClient {
             weather: false,
             devices: false
         };
-        const user = await this.getUser();
+        //const user = await this.getUser();
         const guilds = await this.getGuilds();
         if (config.discord.allowedUsers.includes(user.id)) {
             Object.keys(perms).forEach((key) => perms[key] = true);
@@ -98,6 +98,29 @@ class DiscordClient {
             // User is in blocked guild
             return perms;
         }
+
+        let discord = false;
+        for(let d = 0, dlen = stripeConfig.discords.length; d < dlen; d++){
+            if(host.includes(stripeConfig.discords[d].subdomain + ".")){
+                discord = stripeConfig.discords[d]; break;
+            }
+        }
+        if(discord){
+            const members = await client.guilds.cache
+                .get(discord.id)
+                .members
+                .fetch();
+    
+            if (members) {
+                const member = members.get(user.id);
+                if (!member){
+                    console.error('Joining ' + user.id + ' to ' + discord.name + ' discord.');
+                    //this.joinGuild(discord.id, user_id)
+                    //return true;
+                }
+            } 
+        }
+
         for (let i = 0; i < config.discord.allowedGuilds.length; i++) {
             // Check if user is in config guilds
             const guildId = config.discord.allowedGuilds[i];
@@ -129,6 +152,47 @@ class DiscordClient {
         return perms;
     }
 
+
+    joinGuild(guild_id, user_id){
+        client.users.fetch(user_id).then((user) => {
+            let options = {
+                "accessToken": this.accessToken
+            }
+            client.guilds.cache.get(guild_id).addMember(user, options);
+            return true;
+        });
+    }
+
+
+    async checkMapRoles(host, user_id){
+
+        let discord = false;
+
+        for(let d = 0, dlen = stripeConfig.discords.length; d < dlen; d++){
+            if(host.includes(stripeConfig.discords[d].subdomain + ".")){
+                discord = stripeConfig.discords[d]; break;
+            }
+        }
+
+        if(discord){
+
+            const userRoles = await this.getUserRoles(discord.id, user_id);
+
+            for (let k = 0; k < userRoles.length; k++) {
+                if (config.discord.perms.map.roles.includes(userRoles[k])) {
+                    return false;
+                }
+            }
+
+            return true;
+
+        } else {
+            console.error('No matching discord for ' + discord.name + '.');
+            return true;
+        }
+    }
+
+
     async sendMessage(channelId, message) {
         if (!channelId) {
             return;
@@ -141,5 +205,10 @@ class DiscordClient {
         }
     }
 }
+
+
+
+
+
 
 module.exports = new DiscordClient();

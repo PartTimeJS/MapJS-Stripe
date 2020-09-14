@@ -9,19 +9,15 @@ const db = new MySQLConnector(config.db);
 
 const stripe = require('stripe')(config.stripe.live_sk);
 
-const DiscordClient = require('../services/discord.js');
-
-class StripeCustomer {
-
-
-    constructor(user_id, user_name, email, map_url, plan_id, customer_id, subscription_id) {
-        this.user_id = user_id;
-        this.user_name = user_name;
-        this.email = email;
-        this.url = map_url;
-        this.plan_id = plan_id;
-        this.customer_id = customer_id;
-        this.subscription_id = subscription_id;
+class StripeClient {
+    constructor(user) {
+        this.user_id = user.user_id;
+        this.user_name = user.user_name;
+        this.email = user.email;
+        this.map_url = user.map_url;
+        this.plan_id = user.plan_id;
+        this.customer_id = user.customer_id;
+        this.subscription_id = user.subscription_id;
     }
 
 
@@ -312,4 +308,4 @@ db.query(user_table).catch(err => {
 });
 
 
-module.exports = new StripeCustomer();
+module.exports = StripeClient;
