@@ -113,13 +113,6 @@ router.get('/account', (req, res) => {
 });
 
 
-router.post('/stripe', bodyParser.raw({
-    type: 'application/json'
-}), (webhook, res) => {
-    res.sendStatus(200);
-    
-});
-
 
 router.get('/discordError', (req, res) => {
     return res.render(__dirname + '/html/generalError.html');
@@ -128,5 +121,16 @@ router.get('/discordError', (req, res) => {
 router.get('/stripeError', (req, res) => {
     return res.render(__dirname + '/html/generalError.html');
 });
+
+router.post('/webhook', bodyParser.raw({
+    type: 'application/json'
+}), (webhook, res) => {
+    res.sendStatus(200);
+
+
+    
+});
+
+
 
 module.exports = router;
