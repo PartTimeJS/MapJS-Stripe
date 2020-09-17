@@ -297,7 +297,7 @@ let user_table = `
       access_token varchar(60),
       refresh_token varchar(60),
       last_login varchar(20),
-      quest_delivery bigint,
+      alert_time bigint,
       embed LONGTEXT NOT NULL,
       PRIMARY KEY (user_id) USING BTREE
   )

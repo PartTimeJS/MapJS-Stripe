@@ -63,7 +63,7 @@ router.get('/subscribe', async (req, res) => {
                 req.session.session_id = await StripeCustomer.createSession();
 
                 req.session.subscription = await StripeCustomer.getSubscription();
-                
+
                 if (session.status == 'error') {
                     console.error(session.error);
                     res.render('generalError.html', req.session);
@@ -72,10 +72,6 @@ router.get('/subscribe', async (req, res) => {
                 }
 
             } else {
-
-                
-
-                //req.session.next_payment = subscription.
 
                 res.render('subscribe', req.session);
             }
@@ -118,18 +114,95 @@ router.get('/discordError', (req, res) => {
     return res.render(__dirname + '/html/generalError.html');
 });
 
+
 router.get('/stripeError', (req, res) => {
     return res.render(__dirname + '/html/generalError.html');
 });
+
 
 router.post('/webhook', bodyParser.raw({
     type: 'application/json'
 }), (webhook, res) => {
     res.sendStatus(200);
 
+    let data = "",
+        member = "",
+        customer = "";  
 
+    switch (webhook.type) {
+
+        case 'charge.succeeded':
+            data = await db.query(`
+                SELECT
+                    *
+                FROM
+                    oauth_users
+                WHERE
+                    stripe_id = ${webhook.data.object.customer};
+            `);
+            let user 
+            if(user.length > 1){
+                console.error('[routes/stripe.js] Saw multiple users returned from the user query',user);
+            }
+            if(user){
+                user = user[0];
+                let user = await bot.users.fetch(user.user_id);
+                console.log('[' + bot.getTime('stamp') + '] [routes/stripe.js] Received Successful Charge webhook for ' + user.tag + ' (' + customer.id + ').');
+                if (config.stripe_log) {
+                  bot.sendEmbed(member, '00FF00', 'Payment Successful! 💰 ', 'Amount: **$' + parseFloat(webhook.data.object.amount / 100).toFixed(2) + '**', config.stripe_log_channel);
+                }
+            } else {
+                console.error('[routes/stripe.js] No user returned from the user query',user);
+            }
+            
+            // END 
+            return;
+  
+        case 'customer.subscription.deleted':
+            customer = await object.customer.fetch(webhook.data.object.customer);
+            member = await bot.guilds.cache.get(config.guild_id).members.cache.get(customer.name.split(' - ')[1]);
+            switch (true) {
+                case !member:
+                return;
+                case webhook.data.object.plan.id != config.STRIPE.plan_id:
+                return;
+                default:
+                console.log('[' + bot.getTime('stamp') + '] [stripe.js] Received Deleted Subcscription webhook for ' + customer.name.split(' - ')[0] + ' (' + webhook.data.object.customer + ').');
+                bot.removeDonor(customer.name.split(' - ')[1]);
+                object.customer.delete(webhook.data.object.customer);
+                if (config.stripe_log) {
+                    bot.sendEmbed(member, 'FF0000', 'Subscription Deleted! ⚰', '', config.stripe_log_channel);
+                }
+                database.runQuery(
+                    `UPDATE
+                        oauth_users
+                    SET
+                        stripe_id = NULL,
+                        plan_id = NULL,
+                        sub_id = NULL
+                    WHERE
+                        user_id = ${customer.name.split(' - ')[1]};`
+                );
+            }
+            return;
     
-});
+            case 'invoice.payment_failed':
+            //------------------------------------------------------------------------------
+            //   PAYMENT FAILED WEBHOOK
+            //------------------------------------------------------------------------------
+            customer = await object.customer.fetch(webhook.data.object.customer);
+            member = await bot.guilds.cache.get(config.guild_id).members.cache.get(customer.name.split(' - ')[1]);
+            console.log('[' + bot.getTime('stamp') + '] [stripe.js] Received Payment Failed webhook for ' + user.tag + ' (' + customer.id + ').');
+            bot.removeDonor(member.id);
+            if (config.stripe_log) {
+                bot.sendEmbed(member, 'FF0000', 'Payment Failed! ⛔', 'Attempt Count: **' + webhook.data.object.attempt_count + '** of **5**', config.stripe_log_channel);
+            }
+            if (webhook.data.object.attempt_count != 5) {
+                bot.sendDM(member, 'Subscription Payment Failed! ⛔', 'Uh Oh! Your Donor Payment failed to ' + config.map_name + '.\nThis was attempt ' + webhook.data.object.attempt_count + '/5. \nPlease visit ' + config.map_url + '/subscribe to update your payment information.', 'FF0000');
+            }
+            return;
+        }
+    });
 
 
 
