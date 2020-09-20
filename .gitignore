@@ -107,6 +107,7 @@ dist
 config.json
 rarity.json
 stripe.json
+discords.json
 
 # No logs
 logs
