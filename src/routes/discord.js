@@ -8,7 +8,7 @@ const DiscordClient = require('../services/discord.js');
 //const utils = require('../services/utils.js');
 
 const config = require('../services/config.js');
-const discord = require('../services/discord.js');
+//const discord = require('../services/discord.js');
 const redirect = encodeURIComponent(config.discord.redirectUri);
 
 const catchAsyncErrors = fn => ((req, res, next) => {
@@ -37,22 +37,23 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         headers: headers
     }).then(async (response) => {
         //const client = DiscordClient.instance;
-        DiscordClient.setAccessToken(response.data.access_token);
-        const user = await DiscordClient.getUser();
+        const user = new DiscordClient({ access_token: response.data.access_token });
+        const data = await user.getUser();
         req.session.access_token = response.data.access_token;
         req.session.logged_in = true;
-        req.session.user_id = user.id;
-        req.session.email = user.email;
-        req.session.username = `${user.username}#${user.discriminator}`;
-        const perms = await DiscordClient.getPerms(user, req.get('host'));
-        req.session.perms = perms;
+        req.session.user_id = data.id;
+        req.session.email = data.email;
+        req.session.username = `${data.username}#${data.discriminator}`;
+        user.setUserInfo(req.session);
+        const perms = await user.getPerms();
+        user.guildMemberCheck(req.get('host'));
         const valid = perms.map !== false;
         req.session.valid = valid;
         req.session.save();
         if(valid) {
-            console.log(user.id, 'Authenticated successfully.');
+            console.log(data.id, 'Authenticated successfully.');
             await DiscordClient.sendMessage(config.discord.logChannelId, `${user.username}#${user.discriminator} (${user.id}) Authenticated successfully.`);
-            res.redirect('/');
+            return res.redirect('/');
         } else {
             // Not in Discord server(s) and/or have required roles to view map
             console.warn(user.id, 'Not authorized to access map');

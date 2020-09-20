@@ -1,19 +1,19 @@
-'use strict';
+/* eslint-disable no-async-promise-executor */
+/* global BigInt */
+'user strict';
 
+const moment = require('moment');
 const express = require('express');
-const axios = require('axios');
 const router = express.Router();
 const bodyParser = require('body-parser');
 
 const defaultData = require('../data/default.js');
 
 const config = require('../configs/stripe.json');
+const discords = require('../configs/discords.json').discords;
 
 const StripeClient = require('../services/stripe.js');
-//const utils = require('../services/utils.js');
-
-const MySQLConnector = require('../services/mysql.js');
-const db = new MySQLConnector(config.db);
+const DiscordClient = require('../services/discord.js');
 
 const catchAsyncErrors = fn => ((req, res, next) => {
     const routePromise = fn(req, res, next);
@@ -23,80 +23,44 @@ const catchAsyncErrors = fn => ((req, res, next) => {
 });
 
 router.get('/subscribe', async (req, res) => {
-
     let discord = false;
-
-    for(let d = 0, dlen = config.discords.length; d < dlen; d++){
-        if(req.get('host').includes(config.discords[d].subdomain + ".")){
-            discord = config.discords[d]; break;
+    if(discord.length > 1){
+        for(let d = 0, dlen = discords.length; d < dlen; d++){
+            if(req.get('host').includes(discords[d].subdomain + '.')){
+                discord = discords[d]; break;
+            }
         }
+    } else { 
+        discord = discords[0];
     }
-
     if(discord){
-
-        let user_found = await db.query(`
-            SELECT
-                *
-            FROM
-                stripe_users
-            WHERE
-                user_id = '${req.session.user_id}';
-        `);
-
+        const user = new StripeClient({ user_id: req.session.user_id });
+        const found = await user.findRecordByUser();
         req.session.map_name = (discord.name + 'PokéMap');
-        req.session.key = discord.test_pk ? discord.test_pk :config.stripe.live_pk;
+        req.session.key = discord.test_pk ? discord.test_pk : config.stripe.live_pk;
         req.session.map_url = req.protocol + '://' + req.get('host');
         req.session.plan_id = discord.plan_id;
         req.session.amt = discord.plan_cost;
-
-        if(user_found && user_found[0]){
-
-            req.session.customer_id = user_found[0].cust_id ? user_found[0].cust_id : null;
-            req.session.subscription_id = user_found[0].sub_id ? user_found[0].sub_id : null;    
-
-            const StripeCustomer = new StripeClient(req.session);
-
-            console.log(StripeCustomer);
-
-            if(StripeCustomer.customerID && StripeCustomer.subscriptionID){
-
-                req.session.session_id = await StripeCustomer.createSession();
-
-                req.session.subscription = await StripeCustomer.getSubscription();
-
-                if (session.status == 'error') {
-                    console.error(session.error);
+        if(found){
+            req.session.customer_id = found.customer_id ? found.customer_id : false;
+            req.session.subscription_id = found.subscription_id ? found.subscription_id : false;
+            await user.setUserData(req.session);
+            console.log('user',user);
+            if(user.customerID && user.subscriptionID){
+                req.session.session_id = await user.createSession();
+                if(req.session.session_id.error){
                     res.render('generalError.html', req.session);
                 } else {
                     res.render('account', req.session);
                 }
-
             } else {
-
                 res.render('subscribe', req.session);
             }
-
         } else {
-            let user_insert = `
-                INSERT IGNORE INTO stripe_users (
-                        user_id,
-                        user_name,
-                        email,
-                        plan_id
-                    ) 
-                VALUES 
-                    (
-                        '${req.session.user_id}', 
-                        '${req.session.username}', 
-                        '${req.session.email}',
-                        '${discord.plan_id}'
-                    );
-            `;
-            await db.query(user_insert);
-            console.log('redirecting back to subscribe')
+            await user.setUserData(req.session);
+            user.insertDbRecord();
             res.redirect('/api/stripe/subscribe');
         }
-
     } else {
         console.error('[routes/stripe.js] No matching discord for ' + req.protocol + '://' + req.get('host'));
         res.redirect('/discordError');
@@ -107,7 +71,6 @@ router.get('/subscribe', async (req, res) => {
 router.get('/account', (req, res) => {
     res.render('account', defaultData);
 });
-
 
 
 router.get('/discordError', (req, res) => {
@@ -122,87 +85,73 @@ router.get('/stripeError', (req, res) => {
 
 router.post('/webhook', bodyParser.raw({
     type: 'application/json'
-}), (webhook, res) => {
+}), async (webhook, res) => {
     res.sendStatus(200);
 
-    let data = "",
-        member = "",
-        customer = "";  
-
-    switch (webhook.type) {
-
-        case 'charge.succeeded':
-            data = await db.query(`
-                SELECT
-                    *
-                FROM
-                    oauth_users
-                WHERE
-                    stripe_id = ${webhook.data.object.customer};
-            `);
-            let user 
-            if(user.length > 1){
-                console.error('[routes/stripe.js] Saw multiple users returned from the user query',user);
-            }
-            if(user){
-                user = user[0];
-                let user = await bot.users.fetch(user.user_id);
-                console.log('[' + bot.getTime('stamp') + '] [routes/stripe.js] Received Successful Charge webhook for ' + user.tag + ' (' + customer.id + ').');
-                if (config.stripe_log) {
-                  bot.sendEmbed(member, '00FF00', 'Payment Successful! 💰 ', 'Amount: **$' + parseFloat(webhook.data.object.amount / 100).toFixed(2) + '**', config.stripe_log_channel);
-                }
-            } else {
-                console.error('[routes/stripe.js] No user returned from the user query',user);
-            }
-            
-            // END 
-            return;
-  
-        case 'customer.subscription.deleted':
-            customer = await object.customer.fetch(webhook.data.object.customer);
-            member = await bot.guilds.cache.get(config.guild_id).members.cache.get(customer.name.split(' - ')[1]);
-            switch (true) {
-                case !member:
-                return;
-                case webhook.data.object.plan.id != config.STRIPE.plan_id:
-                return;
-                default:
-                console.log('[' + bot.getTime('stamp') + '] [stripe.js] Received Deleted Subcscription webhook for ' + customer.name.split(' - ')[0] + ' (' + webhook.data.object.customer + ').');
-                bot.removeDonor(customer.name.split(' - ')[1]);
-                object.customer.delete(webhook.data.object.customer);
-                if (config.stripe_log) {
-                    bot.sendEmbed(member, 'FF0000', 'Subscription Deleted! ⚰', '', config.stripe_log_channel);
-                }
-                database.runQuery(
-                    `UPDATE
-                        oauth_users
-                    SET
-                        stripe_id = NULL,
-                        plan_id = NULL,
-                        sub_id = NULL
-                    WHERE
-                        user_id = ${customer.name.split(' - ')[1]};`
-                );
-            }
-            return;
-    
-            case 'invoice.payment_failed':
-            //------------------------------------------------------------------------------
-            //   PAYMENT FAILED WEBHOOK
-            //------------------------------------------------------------------------------
-            customer = await object.customer.fetch(webhook.data.object.customer);
-            member = await bot.guilds.cache.get(config.guild_id).members.cache.get(customer.name.split(' - ')[1]);
-            console.log('[' + bot.getTime('stamp') + '] [stripe.js] Received Payment Failed webhook for ' + user.tag + ' (' + customer.id + ').');
-            bot.removeDonor(member.id);
+    if(webhook.type === 'charge.succeeded'){
+        setTimeout(() => {
+            const cs_customer = new StripeClient({ 
+                customer_id: webhook.data.object.customer 
+            });
+            const cs_record = cs_customer.fetchRecordByCustomer();
+            const cs_user = new DiscordClient(cs_record);
+            console.log('[' + getTime('stamp') + '] [routes/stripe.js] Received Successful Charge webhook for ' + user.tag + ' (' + customer.id + ').');
             if (config.stripe_log) {
-                bot.sendEmbed(member, 'FF0000', 'Payment Failed! ⛔', 'Attempt Count: **' + webhook.data.object.attempt_count + '** of **5**', config.stripe_log_channel);
+                cs_user.sendChannelEmbed('00FF00', 'Payment Successful! 💰 ', 'Amount: **$' + parseFloat(webhook.data.object.amount / 100).toFixed(2) + '**', config.stripe_log_channel);
             }
-            if (webhook.data.object.attempt_count != 5) {
-                bot.sendDM(member, 'Subscription Payment Failed! ⛔', 'Uh Oh! Your Donor Payment failed to ' + config.map_name + '.\nThis was attempt ' + webhook.data.object.attempt_count + '/5. \nPlease visit ' + config.map_url + '/subscribe to update your payment information.', 'FF0000');
-            }
-            return;
+        }, 5000);
+        // END 
+        return;
+
+    } else if (webhook.type === 'customer.subscription.deleted'){
+        const sd_customer = new StripeClient({ 
+            customer_id: webhook.data.object.customer 
+        });
+        const sd_record = await sd_customer.fetchRecordByCustomer();
+        sd_customer.setUserData(sd_record);
+        sd_customer.deleteCustomer();
+        sd_customer.clearDbRecord();
+        const sd_user = new DiscordClient(sd_record);
+        sd_user.removeDonor();
+        if (config.stripe_log) {
+            sd_user.sendChannelEmbed('FF0000', 'Subscription Deleted! ⚰', '', config.stripe_log_channel);
         }
-    });
+        // END
+        return;
+
+    } else if (webhook.type === 'customer.subscription.cancelled'){
+        // const sd_customer = new StripeClient({ 
+        //     customer_id: webhook.data.object.customer 
+        // });
+        // const sd_record = await sd_customer.fetchRecordByCustomer();
+        // sd_customer.setUserData(sd_record);
+        // sd_customer.deleteCustomer();
+        // sd_customer.clearDbRecord();
+        // const sd_user = new DiscordClient(sd_record);
+        // sd_user.removeDonor();
+        // if (config.stripe_log) {
+        //     sd_user.sendChannelEmbed('FF0000', 'Subscription Deleted! ⚰', '', config.stripe_log_channel);
+        // }
+        // // END
+        // return;
+    
+    } else if (webhook.type === 'invoice.payment_failed'){
+        const pf_customer = new StripeClient({ 
+            customer_id: webhook.data.object.customer 
+        });
+        const pf_record = await pf_customer.fetchRecordByCustomer();
+        const pf_user = new DiscordClient(pf_record);
+        pf_user.removeDonor();
+        if (config.stripe_log) {
+            pf_user.sendChannelEmbed('FF0000', 'Payment Failed! ⛔', 'Attempt Count: **' + webhook.data.object.attempt_count + '** of **5**', config.stripe_log_channel);
+        }
+        if (webhook.data.object.attempt_count != 5) {
+            pf_user.sendDirectMessageEmbed('FF0000', 'Subscription Payment Failed! ⛔', 'Uh Oh! Your Donor Payment failed to ' + config.map_name + '.\nThis was attempt ' + webhook.data.object.attempt_count + '/5. \nPlease visit ' + config.map_url + '/subscribe to update your payment information.');
+        }
+        // END
+        return;
+    }
+});
 
 
 

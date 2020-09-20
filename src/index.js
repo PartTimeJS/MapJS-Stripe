@@ -145,7 +145,7 @@ app.use(async (req, res, next) => {
             // Check if there are any other sessions in the database that are for the same user_id,
             // if so delete all other sessions other than the current session.
             if (!(await isValidSession(req.session.user_id))) {
-                console.debug('[Session] Detected multiple sessions, clearing old ones...')
+                console.debug('[Session] Detected multiple sessions, clearing old ones...');
                 await clearOtherSessions(req.session.user_id, req.sessionID);
             }
         }
@@ -154,8 +154,8 @@ app.use(async (req, res, next) => {
             res.redirect('/subscribe'); //res.redirect('/login');
             return;
         }
-        const perms = req.session.perms;
-        //defaultData.hide_map = perms.map ? await DiscordClient.checkMapRoles(req.get('host'), req.session.user_id) : !perms.map;
+        const user = new DiscordClient(req.session);
+        const perms = await user.getPerms();
         defaultData.hide_map = !perms.map;
         if (defaultData.hide_map) {
             // No view map permissions, go to login screen

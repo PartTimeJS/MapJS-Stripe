@@ -1,8 +1,10 @@
+/* eslint-disable no-async-promise-executor */
 /* global BigInt */
 'use strict';
 
 const config = require('../services/config.js');
-const stripeConfig = require('../configs/stripe.json');
+const discords = require('../configs/discords.json').discords;
+
 const DiscordOauth2 = require('discord-oauth2');
 const oauth = new DiscordOauth2();
 
@@ -10,7 +12,7 @@ const Discord = require('discord.js');
 const client = new Discord.Client();
 
 if (config.discord.enabled) {
-    client.on('ready', () => {
+    client.on('ready', async () => {
         console.log(`Logged in as ${client.user.tag}!`);
         client.user.setPresence({ activity: { name: config.discord.status, type: 3 } });
     });
@@ -21,8 +23,26 @@ if (config.discord.enabled) {
 class DiscordClient {
     //static instance = new DiscordClient();
 
-    constructor(accessToken) {
-        this.accessToken = accessToken;
+    constructor(user) {
+        this.accessToken = user.access_token;
+        this.userId = user.user_id;
+        this.username = user.username;
+        this.guildId = user.guild_id;
+        this.guildName = user.guild_name;
+        this.donorRole = user.donor_role;
+        this.email = user.email;
+    }
+
+    setUserInfo(user){
+        this.userId = user.user_id;
+        this.username = user.username;
+        this.guildId = user.guild_id;
+        this.guildName = user.guild_name;
+        this.email = user.email;
+    }
+
+    setUserId(id){
+        this.userId = id;
     }
 
     setAccessToken(token) {
@@ -39,24 +59,24 @@ class DiscordClient {
         return guildIds;
     }
 
-    async getUserRoles(guildId, userId) {
+    async getUserRoles(guildId) {
         try {
             const members = await client.guilds.cache
                 .get(guildId)
                 .members
                 .fetch();
-            const member = members.get(userId);
+            const member = members.get(this.userId);
             const roles = member.roles.cache
                 .filter(x => BigInt(x.id).toString())
                 .keyArray();
             return roles;
         } catch (e) {
-            console.error('Failed to get roles in guild', guildId, 'for user', userId);
+            console.error('Failed to get roles in guild', guildId, 'for user', this.userId);
         }
         return [];
     }
 
-    async getPerms(user, host) {
+    async getPerms() {
         const perms = {
             map: false,
             pokemon: false,
@@ -76,11 +96,9 @@ class DiscordClient {
             weather: false,
             devices: false
         };
-        //const user = await this.getUser();
         const guilds = await this.getGuilds();
-        if (config.discord.allowedUsers.includes(user.id)) {
+        if (config.discord.allowedUsers.includes(this.userId)) {
             Object.keys(perms).forEach((key) => perms[key] = true);
-            console.log(`User ${user.username}#${user.discriminator} (${user.id}) in allowed users list, skipping guild and role check.`);
             return perms;
         }
 
@@ -94,31 +112,10 @@ class DiscordClient {
                 break;
             }
         }
+
         if (blocked) {
             // User is in blocked guild
             return perms;
-        }
-
-        let discord = false;
-        for(let d = 0, dlen = stripeConfig.discords.length; d < dlen; d++){
-            if(host.includes(stripeConfig.discords[d].subdomain + ".")){
-                discord = stripeConfig.discords[d]; break;
-            }
-        }
-        if(discord){
-            const members = await client.guilds.cache
-                .get(discord.id)
-                .members
-                .fetch();
-    
-            if (members) {
-                const member = members.get(user.id);
-                if (!member){
-                    console.error('Joining ' + user.id + ' to ' + discord.name + ' discord.');
-                    //this.joinGuild(discord.id, user_id)
-                    //return true;
-                }
-            } 
         }
 
         for (let i = 0; i < config.discord.allowedGuilds.length; i++) {
@@ -139,7 +136,7 @@ class DiscordClient {
                 }
                 
                 // If set, grab user roles for guild
-                const userRoles = await this.getUserRoles(guildId, user.id);
+                const userRoles = await this.getUserRoles(guildId);
                 // Check if user has config role assigned
                 for (let k = 0; k < userRoles.length; k++) {
                     // Check if assigned role to user is in config roles
@@ -153,43 +150,119 @@ class DiscordClient {
     }
 
 
-    joinGuild(guild_id, user_id){
-        client.users.fetch(user_id).then((user) => {
+    joinGuild(guild_id){
+        client.users.fetch(this.userId).then((user) => {
             let options = {
-                "accessToken": this.accessToken
-            }
+                'accessToken': this.accessToken
+            };
             client.guilds.cache.get(guild_id).addMember(user, options);
             return true;
         });
     }
 
 
-    async checkMapRoles(host, user_id){
-
+    async guildMemberCheck(host){
         let discord = false;
-
-        for(let d = 0, dlen = stripeConfig.discords.length; d < dlen; d++){
-            if(host.includes(stripeConfig.discords[d].subdomain + ".")){
-                discord = stripeConfig.discords[d]; break;
+        for(let d = 0, dlen = discords.length; d < dlen; d++){
+            if(host.includes(discords[d].subdomain + '.')){
+                discord = discords[d]; break;
             }
         }
-
         if(discord){
+            let members = await this.fetchGuildMembers(discord.id);
+            if (members) {
+                const member = members.get(this.userId);
+                if (member){
+                    return true;
+                } else {
+                    console.error('Joining ' + this.userId + ' to ' + discord.name + ' discord.');
+                    //this.joinGuild(discord.id)
+                    //return false;
+                }
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
 
-            const userRoles = await this.getUserRoles(discord.id, user_id);
 
-            for (let k = 0; k < userRoles.length; k++) {
-                if (config.discord.perms.map.roles.includes(userRoles[k])) {
-                    return false;
+    fetchGuildMembers(guild_id){
+        return new Promise(async (resolve) => {
+            const members = await client.guilds.cache
+                .get(guild_id)
+                .members
+                .fetch();
+            if(members){
+                return resolve(members);
+            } else {
+                console.error('unable to fetch members for ' + guild_id + '.');
+                return resolve(false);
+            }
+        });
+    }
+
+
+    fetchGuildDonors(){
+        return new Promise(async (resolve) => {
+            const guild = await client.guilds.cache
+                .get(this.guildId);
+            const members = guild.roles.cache
+                .find(role => role.id === this.roleId)
+                .members
+                .map(m => m);
+            return resolve(members);
+        });
+    }
+
+
+    fetchAllMembersArray(){
+        return new Promise(async (resolve) => {
+            const allMembers = [];
+            for(let d = 0, dlen = discords.length; d < dlen; d++){
+                let members = await this.fetchGuildMembers(discords[d].id);
+                members = members.map(m => m);
+                for(let m = 0, mlen = members.length; m < mlen; m++){
+                    allMembers.push(members[m]);
                 }
             }
+            return resolve(allMembers);
+        });
+    }
 
-            return true;
 
-        } else {
-            console.error('No matching discord for ' + discord.name + '.');
-            return true;
-        }
+    checkIfMember(guild_id){
+        return new Promise(async (resolve) => {
+            if(guild_id){
+                let members = await this.fetchGuildMembers(guild_id);
+                if(members){
+                    const member = members.get(this.userId);
+                    if(member){
+                        return resolve(true);
+                    } else {
+                        return resolve(false);
+                    }
+                } else {
+                    return resolve(false);
+                }
+            } else {
+                for(let d = 0, dlen = discords.length; d < dlen; d++){
+                    const discord = discords[d];
+                    let members = await this.fetchGuildMembers(discord.id);
+                    if (members) {
+                        const member = members.get(this.userId);
+                        if (member){
+                            return resolve(true);
+                        } else {
+                            return resolve(false);
+                        }
+                    } else {
+                        return resolve(true);
+                    }
+                }
+            }
+        });
     }
 
 
@@ -207,8 +280,18 @@ class DiscordClient {
 }
 
 
+function getTime (type) {
+    switch (type) {
+        case 'full':
+            return moment().format('dddd, MMMM Do  h:mmA');
+        case 'unix':
+            return moment().unix();
+        case 'ms':
+            return moment().valueOf();
+        default:
+            return moment().format('h:mmA');
+    }
+}
 
 
-
-
-module.exports = new DiscordClient();
+module.exports = DiscordClient;
