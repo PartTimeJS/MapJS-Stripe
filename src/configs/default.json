@@ -7,7 +7,7 @@
     "style": "dark",
     "searchMaxResults": 20,
     "sessionSecret": "98ki^e72~!@#(85o3kXLI*#c9wu5l!Z",
-    "allowMultipleSessions": true,
+    "maxSessions": 5,
     "favicon": "favicon.ico",
     "ratelimit": {
         "time": 60,
@@ -29,6 +29,10 @@
         "minZoom": 10,
         "maxZoom": 18,
         "maxPokemonId": 649,
+        "minPvpCp": { 
+            "great": 1400,
+            "ultra": 2400
+        },
         "devicePathColor": "red",
         "nestPolygons": true,
         "clusters": {
@@ -55,17 +59,14 @@
             "devices": false
         },
         "glow": {
-            "iv": 100,
-            "color": "red"
+            "iv": { "value": 100, "color": "red" },
+            "pvp": { "value": 1, "color": "blue" },
+            "both": { "color": "purple" }
         }
     },
     "header": {
-        "left": [
-            { "name": "Stats", "url": "https://stats.example.com", "icon": "fas fa-chart-bar" }
-        ],
-        "right": [
-            { "name": "Discord", "url": "https://discord.com", "icon": "fab fa-discord" }
-        ]
+        "left": [],
+        "right": []
     },
     "db": {
         "scanner": {
