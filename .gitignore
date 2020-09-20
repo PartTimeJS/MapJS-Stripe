@@ -112,6 +112,7 @@ discords.json
 # No logs
 logs
 
+src/configs/discords.json
 static/custom/areas.json
 static/custom/nests.json
 static/img/pokemon/*
