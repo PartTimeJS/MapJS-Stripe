@@ -1,15 +1,5 @@
 {
     "discords": [{
-            "name": "Test",
-            "subdomain": "test",
-            "id": "266738315380785152",
-            "plan_id": "",
-            "test_pk": "",
-            "test_sk": "",
-            "plan_cost": "3.50",
-            "log_channel": ""
-        },
-        {
             "name": "Map",
             "subdomain": "map",
             "id": "",

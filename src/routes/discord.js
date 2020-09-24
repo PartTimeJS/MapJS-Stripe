@@ -46,6 +46,7 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         req.session.username = `${data.username}#${data.discriminator}`;
         user.setUserInfo(req.session);
         const perms = await user.getPerms();
+        console.log('host', req.get('host'));
         user.guildMemberCheck(req.get('host'));
         const valid = perms.map !== false;
         req.session.valid = valid;

@@ -17,8 +17,8 @@ class StripeClient {
 
     constructor(user) {
         this.userId = user.user_id;
-        this.username = user.username;
-        this.guildId = user.guildId;
+        this.userName = user.user_name;
+        this.guildId = user.guild_id;
         this.guildName = user.guild_name;
         this.donorRole = user.donor_role;
         this.email = user.email;
@@ -29,10 +29,10 @@ class StripeClient {
     }
 
 
-    setUserData(user){
+    setClientInfo(user) {
         this.userId = user.user_id;
-        this.username = user.username;
-        this.guildId = user.guildId;
+        this.userName = user.user_name;
+        this.guildId = user.guild_id;
         this.guildName = user.guild_name;
         this.donorRole = user.donor_role;
         this.email = user.email;
@@ -65,10 +65,10 @@ class StripeClient {
                         subscription_id: this.subscriptionId
                     },
                 },
-                success_url: this.mapUrl + `/updatesuccess?session_id={CHECKOUT_SESSION_ID}&plan_id=${this.planId}&user_id=${this.userId}&user_name=${this.username}`,
-                cancel_url: this.mapUrl + `/cancel?user_name=${this.username}`,
+                success_url: this.mapUrl + `/updatesuccess?session_id={CHECKOUT_SESSION_ID}&plan_id=${this.planId}&user_id=${this.userId}&user_name=${this.userName}`,
+                cancel_url: this.mapUrl + `/cancel?user_name=${this.userName}`,
             },
-            function(error, session) {
+            function (error, session) {
                 if (error) {
                     return resolve({
                         status: 'error',
@@ -77,14 +77,13 @@ class StripeClient {
                 }
                 this.sessionId = session.id;
                 return resolve(session);
-            }
-            );
+            });
         });
     }
 
 
     async retrieveSetupIntent(setup_intent) {
-        return new Promise(async function(resolve) {
+        return new Promise(async function (resolve) {
             let intent = await stripe.setupIntents.retrieve(setup_intent);
             return resolve(intent);
         });
@@ -94,14 +93,14 @@ class StripeClient {
     updateCustomerName() {
         stripe.customers.update(
             this.customerId, {
-                description: (this.username + ' - ' + this.userId) 
+                name: (this.userName + ' - ' + this.userId)
             },
-            function(err, customer) {
+            function (err, customer) {
                 if (err) {
-                    console.error('[MapJS] [' + getTime() + '] [services/stripe.js] Error Updating Customer Name.', err.message);
+                    console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Updating Customer Name.`, err.message);
                     return false;
                 } else {
-                    console.log('[MapJS] [' + getTime() + '] [services/stripe.js] Stripe Customer ' + this.customerId + '\'s Name has been Updated.');
+                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer.id}'s Name has been Updated.`);
                     return customer;
                 }
             }
@@ -112,14 +111,14 @@ class StripeClient {
     updateCustomerDescription() {
         stripe.customers.update(
             this.customerId, {
-                description: (this.username + ' - ' + this.userId) 
+                description: (this.userName + ' - ' + this.userId)
             },
-            function(err, customer) {
+            function (err, customer) {
                 if (err) {
-                    console.error('[MapJS] [' + getTime() + '] [services/stripe.js] Error Updating Customer Description.', err.message);
+                    console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Updating Customer Description.`, err.message);
                     return false;
                 } else {
-                    console.log('[MapJS] [' + getTime() + '] [services/stripe.js] Stripe Customer ' + this.username + '\'s (' + this.customerId + ') Description has been Updated.');
+                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${this.userName}'s (${this.customerId}) Description has been Updated.`);
                     return customer;
                 }
             }
@@ -144,17 +143,17 @@ class StripeClient {
     createCustomer() {
         return new Promise((resolve) => {
             stripe.customers.create({
-                description: (this.username + ' - ' + this.userId),
+                description: (this.userName + ' - ' + this.userId),
                 email: this.email,
                 source: this.accessToken
-            }, function(err, customer) {
+            }, function (err, customer) {
                 if (err) {
-                    console.error('[MapJS] [' + getTime() + '] [services/stripe.js] Error Creating Customer.', err.message);
+                    console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Creating Customer.`, err.message);
                     return resolve(false);
                 } else {
                     this.customerId = customer.id;
-                    console.log('[MapJS] [' + getTime() + '] [services/stripe.js] Stripe Customer ' + customer.id + ' has been Created.');
-                    db.query('UPDATE ${config.db.customer_table} SET stripe_id = ? WHERE user_id = ? AND map_guild = ?', [customer.id, this.user_id]);
+                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer.id} has been Created.`);
+                    db.query(`UPDATE ${config.db.customer_table} SET stripe_id = ${customer.id} WHERE user_id = ${this.userId} AND guild_id = ${this.guildId}`);
                     return resolve(customer);
                 }
             });
@@ -168,13 +167,13 @@ class StripeClient {
                 customer.id, {
                     source: token
                 },
-                function(err, customer) {
+                function (err, customer) {
                     if (err) {
-                        console.error('[MapJS] [' + getTime() + '] [services/stripe.js] Error Updating Customer.', err.message);
+                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Updating Customer.`, err.message);
                         return resolve(false);
                     } else {
-                        console.log('[MapJS] [' + getTime() + '] [services/stripe.js] Stripe Customer ' + customer.id + ' has been Updated.');
-                        db.query('UPDATE ${config.db.customer_table} SET stripe_id = ? WHERE user_id = ? AND map_guild = ?', [customer.id, user_id, config.guild_id]);
+                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer.id}'s Payment Method has been Updated.`);
+                        db.query(`UPDATE ${config.db.customer_table} SET stripe_id = ${customer.id} WHERE user_id = ${this.userId} AND guild_id = ${this.guildId}`);
                         return resolve(customer);
                     }
                 }
@@ -182,46 +181,52 @@ class StripeClient {
         });
     }
 
-    fetchCustomer(customer_id) {
+
+    fetchCustomer() {
         return new Promise((resolve) => {
             stripe.customers.retrieve(
-                customer_id,
-                function(err, customer) {
+                this.customerId,
+                function (err, customer) {
                     if (err) {
-                        console.error('[MapJS] [' + getTime() + '] [services/stripe.js] Error Fetching Customer.', err.message);
+                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Fetching Customer.`, err.message);
                         return resolve(false);
                     } else {
                         return resolve(customer);
                     }
-                });
+                }
+            );
         });
     }
 
 
-    insertDbRecord() { 
+    insertDbRecord() {
         db.query(`
             INSERT IGNORE INTO ${config.db.customer_table} (
                     user_id,
                     user_name,
                     email,
-                    plan_id,
                     guild_id,
-                    guild_name
+                    guild_name,
+                    plan_id,
+                    customer_id
                 ) 
-            VALUES 
-                (
+            VALUES (
                     '${this.userId}', 
                     '${this.userName}', 
                     '${this.email}',
-                    '${this.planId}',
                     '${this.guildId}',
-                    '${this.guildName}'
+                    '${this.guildName}',
+                    '${this.planId}',
+                    '${this.customerId}'
                 );
-        `);
+        `).catch(err => {
+            console.error('Failed to execute query:', customer_table, '\r\n:Error:', err);
+        });
+        console.log(`[MapJS] [${getTime()}] [services/stripe.js] DB Record Inserted for ${this.userName} (${this.userId}).`);
     }
 
 
-    updateDbRecord() { 
+    updateDbRecord() {
         db.query(`
             UPDATE
                 ${config.db.customer_table}
@@ -231,11 +236,29 @@ class StripeClient {
                 customer_id = '${this.customerId}',
             WHERE
                 user_id = '${this.userId}';
-        `);
+        `).catch(err => {
+            console.error('Failed to execute query:', customer_table, '\r\n:Error:', err);
+        });
+        console.log(`[MapJS] [${getTime()}] [services/stripe.js] DB Record for ${this.userName} (${this.userId}) for guild_id ${this.guildId} has been Updated.`);
     }
 
 
-    fetchRecordByUser(){
+    deleteDbRecord() {
+        db.query(`
+            DELETE FROM
+                ${config.db.customer_table}
+            WHERE
+                user_id = '${this.userId}'
+                    AND
+                guild_id = '${this.guildId}'
+                    AND
+                customer_id = '${this.customerId}';
+        `);
+        console.log(`[MapJS] [${getTime()}] [services/stripe.js] DB Record for ${this.userName} (${this.userId}) for guild_id ${this.guildId} has been Deleted.`);
+    }
+
+
+    fetchRecordByUser() {
         return new Promise(async (resolve) => {
             const data = await db.query(`
                 SELECT 
@@ -247,9 +270,11 @@ class StripeClient {
                         AND
                     guild_id = '${this.guildId}';
             `);
-            if(data){
-                if(data.length > 1){
-                    console.error('[MapJS] [' + getTime() + '] [services/stripe.js] Saw multiple users returned from the user query', data);
+            if (data) {
+                if (data.length > 1) {
+                    console.error(`[MapJS] [${getTime()}] [services/stripe.js] Deleting Redundant DB Record`, data[1]);
+                    const customer = new StripeClient(data[1]);
+                    customer.deleteDbRecord();
                 }
                 return resolve(data[0]);
             } else {
@@ -259,7 +284,7 @@ class StripeClient {
     }
 
 
-    fetchRecordByCustomer(){
+    fetchRecordByCustomer() {
         return new Promise(async (resolve) => {
             const data = await db.query(`
                 SELECT 
@@ -267,52 +292,79 @@ class StripeClient {
                 FROM 
                     ${config.db.customer_table} 
                 WHERE 
-                    customer_id = '${this.customerId}';
+                    customer_id = '${this.customerId}'
+                        AND
+                    guild_id = '${this.guildId}';
             `);
-            if(data){
-                if(data.length > 1){
-                    console.error('[MapJS] [' + getTime() + '] [services/stripe.js] Saw multiple users returned from the user query', data);
+            if (data) {
+                if (data.length > 1) {
+                    let foundUser = false;
+                    data.forEach(async (record) => {
+                        const user = new DiscordClient(record);
+                        const member = await user.checkIfMember(record.guild_id);
+                        if (member) {
+                            foundUser = true;
+                            console.error(`[MapJS] [${getTime()}] [services/stripe.js] Deleting DB Record with Invalid user_id`, record);
+                            const customer = new StripeClient(record);
+                            customer.deleteDbRecord();
+                        }
+                    });
+                    if (foundUser) {
+                        return resolve(resolve);
+                    }
+                } else {
+                    return resolve(data[0]);
                 }
-                return resolve(data[0]);
             } else {
+                console.log(`
+                    SELECT 
+                        * 
+                    FROM 
+                        ${config.db.customer_table} 
+                    WHERE 
+                        customer_id = '${this.customerId}'
+                            AND
+                        guild_id = '${this.guildId}';
+                `);
                 return resolve(false);
             }
         });
     }
 
 
-    clearDbRecord(){
+    clearDbRecord() {
         db.query(`
             UPDATE
                 ${config.db.customer_table}
             SET
                 customer_id = NULL,
                 plan_id = NULL,
-                subsciption_id = NULL
+                subscription_id = NULL
             WHERE
-                customer_id = '${this.customerId}';`
-        ); return;
+                customer_id = '${this.customerId}'
+                    AND
+                guild_id = '${this.guildId}';`);
+        console.log(`[MapJS] [${getTime()}] [services/stripe.js] DB Record for ${this.userName} (${this.userId}) for guild_id ${this.guildId} has been Cleared.`);
     }
 
 
     deleteCustomer() {
         return new Promise((resolve) => {
+            const customer_id = this.customerId;
             stripe.customers.del(
-                this.customerId,
-                function(err, confirmation) {
+                customer_id,
+                function (err, confirmation) {
                     if (err) {
-                        console.error('[MapJS] [' + getTime() + '] [services/stripe.js] Error Deleting Customer.', err.message);
+                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Deleting Customer ${customer_id}.`, err.message);
                         return resolve(false);
                     } else {
-                        console.log('[MapJS] [' + getTime() + '] [services/stripe.js] Stripe Customer ' + this.customerId + ' has been Deleted.');
+                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer_id} has been Deleted.`);
                         return resolve(confirmation);
                     }
-                });
+                }
+            );
         });
     }
-
-
-
 
 
     // async createSubscription(customer, user_id) {
@@ -328,11 +380,11 @@ class StripeClient {
     //                     title: 'ERROR',
     //                     message: err.message
     //                 }
-    //                 console.error('[MapJS] [' + getTime() + '] [services/stripe.js] Error Creating Subscription.', err.message);
+    //                 console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Creating Subscription.', err.message);
     //                 return resolve(object);
     //             } else {
-    //                 db.query('UPDATE ${config.db.customer_table} SET stripe_id = ?, plan_id = ? WHERE user_id = ? AND map_guild = ?', [this.customerId, this.planId, this.userId, this.guildId]);
-    //                 console.log('[MapJS] [' + getTime() + '] [services/stripe.js] A New Stripe Subscription has been Created.');
+    //                 db.query('UPDATE ${config.db.customer_table} SET stripe_id = ?, plan_id = ? WHERE user_id = ? AND guild_id = ?', [this.customerId, this.planId, this.userId, this.guildId]);
+    //                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] A New Stripe Subscription has been Created.`);
     //                 return resolve(subscription);
     //             }
     //         });
@@ -346,7 +398,7 @@ class StripeClient {
                 this.subscriptionId, {
                     cancel_at_period_end: true
                 },
-                function(err, confirmation) {
+                function (err, confirmation) {
                     if (err) {
                         return resolve(false);
                     } else {
@@ -356,22 +408,87 @@ class StripeClient {
             );
         });
     }
+
+
+    validateCustomer() {
+        return new Promise(async (resolve) => {
+            if (!this.customerId || this.customerId === null || this.customerId === 'null') {
+                console.error(`[MapJS] [${getTime()}] [services/stripe.js] No Customer ID Set in order to Validate.`, this);
+                return resolve(false);
+            } else {
+                const customer = await this.fetchCustomer();
+                switch(true) {
+                    case !customer:
+                    case customer.deleted == true:
+                    case !customer.subscriptions:
+                    case !customer.subscriptions.data[0]:
+                    case customer.subscriptions.data[0].status == 'past_due':
+                        return resolve(false);
+                        
+                    default:
+                        this.subscriptionId = customer.subscriptions.data[0].id;
+                        return resolve(true);
+                }
+            }
+        });
+    }
+
+
+    identifyDonorRole(data) {
+        return new Promise((resolve) => {
+            for (let d = 0, dlen = discords.length; d < dlen; d++) {
+                if (data.plan_id) {
+                    if (discords[d].plan_id === data.plan_id) {
+                        return resolve(discords[d]);
+                    }
+                } else if (data.guild_id) {
+                    if (discords[d].id === data.guild_id) {
+                        return resolve(discords[d]);
+                    }
+                } else {
+                    return resolve(false);
+                }
+            }
+        });
+    }
+
+
+    identifyGuild(data) {
+        return new Promise((resolve) => {
+            for (let d = 0, dlen = discords.length; d < dlen; d++) {
+                if (discords[d].name !== 'test') {
+                    if (data.plan_id) {
+                        if (discords[d].plan_id === data.plan_id) {
+                            return resolve(discords[d]);
+                        }
+                    } else if (data.guild_id) {
+                        if (discords[d].id === data.guild_id) {
+                            return resolve(discords[d]);
+                        }
+                    } else {
+                        console.error(`Bad data received from ${data.source}.`, data);
+                        return resolve(false);
+                    }
+                }
+            }
+        });
+    }
 }
 
 
-async function identifyGuild(data){
+async function identifyGuild(data) {
     return new Promise((resolve) => {
-        for(let d = 0, dlen = discords.length; d < dlen; d++){
-            if(data.plan_id){
-                if(discords[d].plan_id === data.plan_id){
+        for (let d = 0, dlen = discords.length; d < dlen; d++) {
+            if (data.plan_id) {
+                if (discords[d].plan_id === data.plan_id) {
                     return resolve(discords[d]);
                 }
-            } else if (data.guild_id){
-                if(discords[d].id === data.guild_id){
+            } else if (data.guild_id) {
+                if (discords[d].id === data.guild_id) {
                     return resolve(discords[d]);
                 }
             } else {
-                console.error('Bad data sent to identifyGuild function from ' + data.source + '.' + data);
+                console.error(`Bad data sent to identifyGuild function from ${data.source}.`, data);
                 return resolve(false);
             }
         }
@@ -379,7 +496,318 @@ async function identifyGuild(data){
 }
 
 
-function getTime (type) {
+async function customersAudit(customers) {
+    return new Promise((resolve) => {
+        for (let c = 0, clen = customers.length; c < clen; c++) {
+            const stripeCustomer = customers[c];
+            setTimeout(async () => {
+                const name = stripeCustomer.name ? stripeCustomer.name : stripeCustomer.description;
+                if (stripeCustomer.subscriptions.data[0]) {
+                    const guild = await identifyGuild({
+                        plan_id: stripeCustomer.subscriptions.data[0].plan.id,
+                        source: 'customersAudit'
+                    });
+                    const customer = new StripeClient({
+                        user_id: (name.split(' - ')[1]),
+                        user_name: (name.split(' - ')[0]),
+                        customer_id: stripeCustomer.id,
+                        subscription_id: stripeCustomer.subscriptions.data[0].id,
+                        guild_id: guild.id,
+                        guild_name: guild.name,
+                        plan_id: guild.plan_id
+                    });
+                    if (name && name.split(' - ').length > 1) {
+                        if (!stripeCustomer.name) {
+                            customer.updateCustomerName();
+                        }
+                        const record = await customer.fetchRecordByCustomer();
+                        if (record) {
+                            if (stripeCustomer.name !== (record.user_name + ' - ' + record.user_id)) {
+                                customer.setClientInfo(record);
+                                customer.updateCustomerName();
+                            }
+                            if (record.user_id === customer.userId) {
+                                const user = new DiscordClient(record);
+                                user.donorRole = guild.role;
+                                user.assigned = await user.assignDonorRole();
+                                if (user.assigned) {
+                                    console.log(stripeCustomer.subscriptions.data[0]);
+                                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) found without a Donor Role.`);
+                                    user.sendChannelEmbed(guild.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
+                                    user.sendChannelEmbed(guild.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
+                                }
+                            } else {
+                                console.log(`[MapJS] [${getTime()}] [services/stripe.js] Customer user_id (${stripeCustomer.name}) does not match the db user_id ${(record.user_name + ' - ' + record.user_id)}.`);
+                                customer.clearDbRecord();
+                            }
+                        } else {
+                            console.log(`[MapJS] [${getTime()}] [services/stripe.js] No database record found for ${stripeCustomer.id}.`);
+                            customer.insertDbRecord();
+                        }
+                    }
+                } else {
+                    const unpaying_customer = new StripeClient({
+                        customer_id: stripeCustomer.id
+                    });
+                    unpaying_customer.deleteCustomer();
+                    console.error(`[MapJS] [${getTime()}] [services/stripe.js] No Active Subscription found for ${stripeCustomer.id}.`);
+                }
+                if ((c + 1) == customers.length) {
+                    return resolve();
+                }
+            }, 2000 * c);
+        }
+    });
+}
+
+
+async function databaseAudit() {
+    return new Promise(async (resolve) => {
+        console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Database Audit...`);
+        const records = await db.query(`SELECT * FROM ${config.db.customer_table} WHERE customer_id is NOT NULL AND customer_id != 'Lifetime';`);
+        for (let r = 0, rlen = records.length; r < rlen; r++) {
+            const record = records[r];
+            setTimeout(async () => {
+                const discord = await identifyGuild({
+                    guild_id: record.guild_id
+                });
+                const user = new DiscordClient(record);
+                console.log('role', discord.role);
+                user.donorRole = discord.role;
+                record.map_url = discord.map_url;
+                const member = await user.checkIfMember(record.guild_id);
+                if (member) {
+                    const customer = new StripeClient(record);
+                    const valid = await customer.validateCustomer();
+                    if (valid) {
+                        if (!record.guild_name || record.guild_name == 'null') {
+                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating guild_name for ${record.user_name} (${record.user_id}).`);
+                            db.query(`UPDATE ${config.db.customer_table} SET guild_name = '${discord.name}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
+                        }
+                        if (!record.subscription_id || record.subscription_id == 'null') {
+                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating subscription_id for ${record.user_name} (${record.user_id}).`);
+                            db.query(`UPDATE ${config.db.customer_table} SET subscription_id = '${customer.subscriptionId}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
+                        }
+                        if (!record.plan_id || record.plan_id == 'null') {
+                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating plan_id for ${record.user_name} (${record.user_id}).`);
+                            db.query(`UPDATE ${config.db.customer_table} SET plan_id = '${discord.plan_id}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
+                        }
+                        user.assigned = await user.assignDonorRole();
+                        if (user.assigned) {
+                            console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) found without a Donor Role.`);
+                            user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
+                            user.sendChannelEmbed(discord.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
+                        }
+                    } else {
+                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Found invalid customer ${user.userName} (${customer.customerId}).`);
+                        user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Invalid Customer Found 🔎', '');
+                        customer.clearDbRecord();
+                        user.removed = await user.removeDonorRole();
+                        if (user.removed) {
+                            user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                        }
+
+                    }
+                } else {
+                    if (!record.customer_id) {
+                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) no longer appears to be a member of ${record.guild_name} (${record.guild_id}).`);
+                        //db.query(`DELETE FROM ${config.db.customer_table} WHERE user_id = '${record.user_id}' AND guild_id = '${record.guild_id}'`);
+                    }
+                }
+                if ((r + 1) === records.length) {
+                    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Database Audit Complete.`);
+                    return resolve();
+                }
+            }, 2000 * (r + 1));
+        }
+    });
+}
+
+
+async function guildsAudit() {
+    return new Promise(async (resolve) => {
+        console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Guild Audit.`);
+        for (let d = 0, dlen = discords.length; d < dlen; d++) {
+            const discord = discords[d];
+            discord.multiplier = (d + 1);
+            console.log(discord.role + ' ' + discord.name);
+            if (discord.role && discord.name != 'test') {
+                const guild = new DiscordClient({
+                    guild_id: discord.id,
+                    guild_name: discord.name,
+                    donor_role: discord.role
+                });
+                const members = await guild.fetchGuildDonors();
+                await membersAudit(discord, members);
+            }
+            if ((d + 1) === discords.length) {
+                console.info(`[MapJS] [${getTime()}] [services/stripe.js] Guild Audit Complete.`);
+                return resolve();
+            }
+        }
+    });
+}
+
+
+async function membersAudit(discord, members) {
+    return new Promise((resolve) => {
+        for (let m = 0, mlen = members.length; m < mlen; m++) {
+            if (config.ignored_users.includes(members[m].id)) {
+                continue;
+            }
+            setTimeout(async () => {
+                const customer = new StripeClient({
+                    user_id: members[m].id,
+                    user_name: members[m].user.username,
+                    guild_id: discord.id,
+                    guild_name: discord.name,
+                    plan_id: discord.plan_id,
+                    donor_role: discord.role
+                });
+                const user = new DiscordClient({
+                    user_id: members[m].id,
+                    user_name: members[m].user.username,
+                    guild_id: discord.id,
+                    guild_name: discord.name,
+                    plan_id: discord.plan_id,
+                    donor_role: discord.role
+                });
+                const record = await customer.fetchRecordByUser();
+                record.donor_role = discord.role;
+                if (record) {
+                    customer.setClientInfo(record);
+                    user.setClientInfo(record);
+                    const userRoles = await user.getUserRoles();
+                    if (!config.ignored_roles.some(r => userRoles.includes(r)) && record.plan_id != 'Lifetime') {
+                        if (record.customer_id) {
+                            if (record.plan_id === discord.plan_id || record.plan_id === discord.alt_plan_id) {
+                                const valid = await customer.validateCustomer();
+                                if (valid) {
+                                    user.assigned = await user.assignDonorRole();
+                                    if (user.assigned) {
+                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) found without a Donor Role.`);
+                                        user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
+                                        user.sendChannelEmbed(discord.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
+                                    }
+                                } else {
+                                    console.log(`membersAudit: Found invalid customer: ${record.user_name} ${record.customer_id}`);
+                                    user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Invalid Customer Found 🔎', '');
+                                    user.removed = await user.removeDonorRole();
+                                    if (user.removed) {
+                                        user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                                    }
+                                }
+                            } else {
+                                console.log(`membersAudit: User's plan (${record.plan_id}) does not match any discord plans. Clearing customer data for ${record.user_name} in the db record.`);
+                                customer.clearDbRecord();
+                                user.removed = await user.removeDonorRole();
+                                if (user.removed) {
+                                    user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                                }
+                            }
+                        } else {
+                            console.error(`membersAudit: User has no Customer ID in the database. Removing Donor Role from ${record.user_name}`);
+                            user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Member found without a Customer ID 🔎', '');
+                            user.removed = await user.removeDonorRole();
+                            if (user.removed) {
+                                user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                            }
+                        }
+                    }
+                } else {
+                    console.log(`membersAudit: Record not found for ${customer.userName} (${customer.userId}). Inserting a record.`);
+                    user.sendChannelEmbed(discord.log_channel, 'FF0000', 'DB Record Not Found for Customer 🔎', '');
+                    customer.insertDbRecord();
+                }
+            }, 2000 * m * discord.multiplier);
+        }
+        return resolve();
+    });
+}
+
+
+async function stripeAudit(last) {
+    return new Promise((resolve) => {
+        stripe.customers.list({
+            limit: 100,
+            starting_after: last
+        },
+        async function (err, list) {
+            if (err) {
+                console.log(err.message);
+                return resolve();
+            } else {
+                await customersAudit(list.data);
+                if (list.has_more !== false) {
+                    await stripeAudit(list.data[list.data.length - 1].id);
+                    return resolve();
+                } else {
+                    setTimeout(() => {
+                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer Audit Complete.`);
+                        return resolve();
+                    }, 2000 * (list.data.length + 1));
+                }
+            }
+        });
+    });
+}
+
+
+const customer_table = `
+    CREATE TABLE IF NOT EXISTS ${config.db.customer_table}(
+        user_id varchar(40) NOT NULL,
+        user_name varchar(40) NOT NULL,
+        guild_id varchar(40) NOT NULL,
+        guild_name varchar(50) NOT NULL,
+        plan_id varchar(50),
+        customer_id varchar(50),
+        subscription_id varchar(50),
+        email varchar(40),
+        access_token varchar(60),
+        refresh_token varchar(60),
+        last_login varchar(20),
+        PRIMARY KEY (user_id, guild_id) USING BTREE
+    )`;
+db.query(customer_table).catch(err => {
+    console.error('Failed to execute query:', customer_table, '\r\n:Error:', err);
+});
+
+
+const auth_log_table = `
+    CREATE TABLE IF NOT EXISTS ${config.db.auth_log_table}(
+        time varchar(40) NOT NULL,
+        customer_id varchar(50),
+        user_id varchar(40) NOT NULL,
+        user_name varchar(40) NOT NULL,
+        guild_id varchar(40) NOT NULL,
+        guild_name varchar(50) NOT NULL,
+        log varchar(255) NOT NULL,
+        timestamp bigint NOT NULL,
+        PRIMARY KEY (timestamp, user_id) USING BTREE
+    )`;
+db.query(auth_log_table).catch(err => {
+    console.error('Failed to execute query:', auth_log_table, '\r\n:Error:', err);
+});
+
+
+const stripe_log_table = `
+    CREATE TABLE IF NOT EXISTS ${config.db.stripe_log_table}(
+        time varchar(40) NOT NULL,
+        customer_id varchar(50),
+        user_id varchar(40) NOT NULL,
+        user_name varchar(40) NOT NULL,
+        guild_id varchar(40) NOT NULL,
+        guild_name varchar(50) NOT NULL,
+        log varchar(255) NOT NULL,
+        timestamp bigint NOT NULL,
+        PRIMARY KEY (timestamp, user_id) USING BTREE
+    )`;
+db.query(stripe_log_table).catch(err => {
+    console.error('Failed to execute query:', stripe_log_table, '\r\n:Error:', err);
+});
+
+
+function getTime(type) {
     switch (type) {
         case 'full':
             return moment().format('dddd, MMMM Do  h:mmA');
@@ -388,384 +816,30 @@ function getTime (type) {
         case 'ms':
             return moment().valueOf();
         default:
-            return moment().format('h:mmA');
+            return moment().format('hh:mmA');
     }
 }
 
 
-ontime(
-    { cycle: ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'] }, 
-    async function(ot) {
-        console.info('[MapJS] [' + getTime() + '[services/stripe.js] Starting Audits...');
-        await auditDatabase();
-        await auditGuilds();
-        await auditCustomers();
-        console.info('[MapJS] [' + getTime() + '[services/stripe.js] Audit Complete.');
-        return ot.done();
-    }
-);
-
-
-async function auditDatabase(){
-    return new Promise(async (resolve) => {
-        console.info('[MapJS] [' + getTime() + '[services/stripe.js] Starting Database Audit.');
-        let records = await db.query(`
-            SELECT
-                *
-            FROM
-                ${config.db.customer_table}
-            WHERE
-                customer_id is NOT NULL;
-        `);
-        for(let r = 0, rlen = records.length; r < rlen; r++){
-            let record = records[r];
-            setTimeout(async () => {
-                const user = new DiscordClient(record);
-                const member = await user.checkIfMember(record.guild_id);
-                if(member){
-                    let customer = new StripeClient(record);
-                    const hasRole = '';
-                } else {
-                    console.error('[MapJS] [' + getTime() + '[services/stripe.js] Member ' + record.user_name + ' (' + record.user_id + ') no longer appears to be a member of  ' + record.guild_name + ' (' + record.guild_id + ').');
-                }
-            }, 1000 * 5);
-        }
-        console.info('[MapJS] [' + getTime() + '[services/stripe.js] Guild Audit Complete.');
-        return resolve();
-    });
-}
-
-async function auditGuilds(){
-    return new Promise(async (resolve) => {
-        console.info('[MapJS] [' + getTime() + '[services/stripe.js] Starting Guild Audit.');
-        for(let d = 0, dlen = discords.length; d < dlen; d++){
-            
-            const discord = discords[d];
-            if(discord.role){
-                const guild = new DiscordClient({
-                    guild_id: discord.id, 
-                    guild_name: discord.name,
-                    donor_role: discord.role
-                });
-                const members = await guild.fetchGuildDonors();
-                await auditMembers(members);
-            } 
-        }
-        console.info('[MapJS] [' + getTime() + '[services/stripe.js] Guild Audit Complete.');   
-    });
-}
-
-async function auditMembers(members){
-    return new Promise((resolve) => {
-        for(let m = 0, mlen = members.length; m < mlen; m++){
-            if(config.ignored_users.includes(members[m].id)){
-                continue;
-            }
-            setTimeout(async () => {
-                const client = new StripeClient({
-                    user_id: member.id,
-                    guild_id: discord.id, 
-                    guild_name: discord.name,
-                    donor_role: discord.role
-                });
-                const record = await client.fetchRecordByUser();
-                if(record){
-                    const member = new DiscordClient(record);
-                    const userRoles = member.getUserRoles();
-                    if(!config.ignored_roles.some(r=> userRoles.includes(r))){
-                        if(record.customer_id){
-                            member.assignDonorRole();
-                        } else {
-                            member.removeDonorRole();
-                        }
-                    }
-                }
-            }, 2000 * m);
-        }
-    });
-}
-
-setTimeout(() => {
-    auditGuilds();
-}, 5000);
-
-
-async function auditCustomers(last){
-    stripe.customers.list({
-            limit: 100,
-            starting_after: last
-        },
-        async function(err, list) {
-            if (err) {
-                console.log(err.message);
-                return false;
-            } else {
-                await this.checkCustomers(list.data);
-                if (list.has_more != false) {
-                    await auditCustomers(list.data[list.data.length - 1].id);
-                }
-                return true;
-            }
-        }
-    );
-}
-
-
-async function checkCustomers(customers) {
-        customers.forEach((stripeCustomer, index) => {
-            setTimeout(() => {
-                const guild = identifyGuild({
-                    plan_id: stripeCustomer.subscriptions.data[0].plan.id,
-                    source: 'checkCustomers'
-                });
-                if(customer.name.split(' - ')[0]){
-                    const user = new StripeClient({
-                        userId: customer.name.split(' - ')[0],
-                        userName: customer.name.split(' - ')[1],
-                        customerId: customer.id,
-                        guildId: guild.id,
-                        guildName: guild.name,
-                        planId: guild.plan_id
-                    });
-                    if(stripeCustomer.subscriptions.data[0]){
-                        const record = user.fetchRecordByCustomer();
-                        const member = new DiscordClient(record);
-                        if(record){
-                            user.setUserData(record);
-                            
-                        } else {
-                            console.log('No database record found for ' + stripeCustomer.id + '. Inserting a record.');
-                            user.insertDbRecord();
-                        }
-                    } else {
-                        // DELETE CUSTOMER
-                        console.error(user.customerId + ' needs to be deleted.');
-                    }
-                } else {
-                    console.error(user.customerId + ' has no customer name.');
-                }
-                
-            }, 5000 * index);
-        });
-    }
-}
-    
-
-
- 
- 
-
-
-
-
-
-// records.forEach((user, index) => {
-//     setTimeout(async function() {
-//         let member = bot.guilds.cache.get(user.map_guild).members.cache.get(user.user_id);
-//         let customer = '';
-//         if (member) {
-//             if (member.roles.cache.has(config.donor_role)) {
-//                 if (!user.stripe_id) {
-//                     bot.removeDonor(member.id);
-//                     return bot.sendEmbed(member, 'FF0000', 'User found without a Subscription ⚠', 'Removed Donor Role.', config.stripe_log_channel);
-//                 } else {
-//                     customer = await stripe.customer.fetch(user.stripe_id);
-//                     user = await bot.users.fetch(user.user_id);
-//                     if (customer.name != (user.username + ' - ' + user.id)) {
-//                         stripe.updateCustomerName(customer.id, user.username + ' - ' + user.id);
-//                     }
-//                     if (customer.description != (user.username + ' - ' + user.id)) {
-//                         stripe.updateCustomerDescription(customer.id, user.username + ' - ' + user.id);
-//                     }
-//                     if (!customer || customer.deleted == true || !customer.subscriptions || !customer.subscriptions.data[0]) {
-//                         bot.removeDonor(member.id);
-//                         bot.sendEmbed(member, 'FF0000', 'User found without a Subscription ⚠', 'Removed Donor Role.', config.stripe_log_channel);
-//                         object.runQuery(
-//                             `UPDATE
-//                                 ${config.db.customer_table}
-//                             SET
-//                                 stripe_id = NULL,
-//                                 plan_id = NULL,
-//                                 sub_id = NULL
-//                             WHERE
-//                                 user_id = ${member.id}
-//                                 AND map_guild = ${config.guild_id};`
-//                         );
-//                     } else if (customer.subscriptions.data[0].status != 'active') {
-//                         bot.removeDonor(member.id);
-//                         bot.sendEmbed(member, 'FF0000', 'User found without an Active Subscription ⚠', 'Removed Donor Role. (Stripe Check)', config.stripe_log_channel);
-//                         object.runQuery(
-//                             `UPDATE
-//                                 ${config.db.customer_table}
-//                             SET
-//                                 stripe_id = NULL,
-//                                 plan_id = NULL,
-//                                 sub_id = NULL
-//                             WHERE
-//                                 user_id = ${member.id}
-//                                 AND map_guild = ${config.guild_id};`
-//                         );
-//                     }
-//                 }
-//             } else if (user.stripe_id && user.stripe_id.startsWith('cus')) {
-//                 customer = await stripe.customer.fetch(user.stripe_id);
-//                 if (!customer || customer.deleted == true) {
-//                     await object.runQuery(
-//                         `UPDATE
-//                         ${config.db.customer_table}
-//                         SET
-//                         stripe_id = NULL,
-//                         plan_id = NULL,
-//                         sub_id = NULL
-//                         WHERE
-//                         user_id = ${member.id}
-//                         AND map_guild = ${config.guild_id};`
-//                     );
-//                     return bot.sendEmbed(member, 'FF0000', 'Found Database Discrepency ⚠', 'Updated ' + user.username + ' Record to Reflect no active Stripe information.', config.stripe_log_channel);
-//                 } else if (!customer.subscriptions.data[0]) {
-//                     stripe.customer.delete(customer.id);
-//                     await object.runQuery(
-//                         `UPDATE
-//                             ${config.db.customer_table}
-//                         SET
-//                             stripe_id = NULL,
-//                             plan_id = NULL,
-//                             sub_id = NULL
-//                         WHERE
-//                             user_id = ${member.id}
-//                             AND map_guild = ${config.guild_id};`
-//                     );
-//                     return bot.sendEmbed(member, 'FF0000', 'Found Database Discrepency ⚠', 'Deleted Customer record for ' + user.username + ' (' + member.id + ').', config.stripe_log_channel);
-//                 } else if (customer.subscriptions.data[0].status == 'active') {
-//                     bot.assignDonor(member.id);
-//                     return bot.sendEmbed(member, 'FF0000', 'User found without Donor Role ⚠', 'Assigned Donor Role.', config.stripe_log_channel);
-//                 }
-//             }
-//         }
-//     }, 5000 * index);
-// });
-// let guild = bot.guilds.cache.get(config.guild_id);
-// let members = guild.roles.cache.find(role => role.id === config.donor_role).members.map(m => m);
-// members.forEach((member, index) => {
-//   setTimeout(function() {
-//     let query = `SELECT * FROM ${config.db.customer_table} WHERE user_id = ? AND map_guild = ?`;
-//     let data = [member.id, config.guild_id],
-//       removed = '';
-//     object.db.query(query, data, async function(err, record, fields) {
-//       if (err) {
-//         return console.error(err);
-//       }
-//       switch (true) {
-//         case !record[0]:
-//           return;
-//         case record[0].stripe_id == 'Lifetime':
-//           return;
-//         case record[0].stripe_id != 'Lifetime':
-//           if (!record[0].stripe_id && member.roles.cache.has(config.donor_role)) {
-//             bot.removeDonor(member.id);
-//             return bot.sendEmbed(member, 'FF0000', 'User found without a Stripe ID ⚠', 'Removed Donor Role. (Member Check)', config.stripe_log_channel);
-//           } else {
-//             customer = await stripe.customer.fetch(record[0].stripe_id);
-//             if (!customer || customer.deleted == true || !customer.subscriptions || !customer.subscriptions.data[0]) {
-//               if (member.roles.cache.has(config.donor_role)) {
-//                 bot.removeDonor(member.id);
-//               }
-//               bot.sendEmbed(member, 'FF0000', 'No Customer found for this User ⚠', 'Removed Donor Role.', config.stripe_log_channel);
-//               query = `UPDATE ${config.db.customer_table} SET stripe_id = NULL, plan_id = NULL WHERE user_id = ? AND map_guild = ?`;
-//               data = [member.id, config.guild_id];
-//               return object.runQuery(query, data);
-//             } else if (customer.subscriptions.data[0].status != 'active' && member.roles.cache.has(config.donor_role)) {
-//               bot.removeDonor(member.id);
-//               return bot.sendEmbed(member, 'FF0000', 'User found without an Active Subscription ⚠', 'Removed Donor Role. (Member Check)', config.stripe_log_channel);
-//             }
-//           }
-//           return;
-//         case member.roles.cache.has(config.donor_role):
-//           bot.removeDonor(member.id);
-//           return bot.sendEmbed(member, 'FF0000', 'User found without a DB Record ⚠', 'Removed Donor Role. (Member Check)', config.stripe_log_channel);
-//       }
-//     });
-//   }, 5000 * index);
-// });
-// return;
-
-let cust_table = `
-    CREATE TABLE IF NOT EXISTS ${config.db.cust_table}(
-        user_id varchar(40) NOT NULL,
-        user_name varchar(40) NOT NULL,
-        guild_id varchar(40) NOT NULL,
-        guild_name varchar(50) NOT NULL,
-        plan_id varchar(50),
-        customer_id varchar(50),
-        subscription_id varchar(50),
-        email varchar(40),
-        access_token varchar(60),
-        refresh_token varchar(60),
-        last_login varchar(20),
-        PRIMARY KEY (user_id, guild_id) USING BTREE
-    )`;
-db.query(cust_table).catch(err => {
-    console.error('Failed to execute query:', cust_table, '\r\n:Error:', err);
+ontime({
+    cycle: ['00:00:00', '03:00:00', '06:00:00', '09:00:00', '12:00:00', '15:00:00', '18:00:00', '21:00:00']
+},
+async function (ot) {
+    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Audits...`);
+    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Customer Audit...`);
+    await stripeAudit();
+    await databaseAudit();
+    await guildsAudit();
+    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Audits Complete.`);
+    return ot.done();
 });
-
-let log_table = `
-    CREATE TABLE IF NOT EXISTS ${config.db.log_table}(
-        user_id varchar(40) NOT NULL,
-        user_name varchar(40) NOT NULL,
-        guild_id varchar(40) NOT NULL,
-        guild_name varchar(50) NOT NULL,
-        plan_id varchar(50),
-        customer_id varchar(50),
-        subscription_id varchar(50),
-        email varchar(40),
-        access_token varchar(60),
-        refresh_token varchar(60),
-        last_login varchar(20),
-        PRIMARY KEY (user_id, guild_id) USING BTREE
-    )`;
-db.query(log_table).catch(err => {
-    console.error('Failed to execute query:', log_table, '\r\n:Error:', err);
-});
-// async function migrate(){
-//     let records = await db.query(`SELECT * FROM ${config.db.customer_table};`).catch(err => {
-//         console.error('Failed to execute query:', user_table, '\r\n:Error:', err);
-//     });
-    
-//     records.forEach((record) => {
-//         db.query(`
-//             INSERT INTO 
-//                 ${config.db.cust_table} (
-//                     user_id,
-//                     user_name,
-//                     guild_id,
-//                     guild_name,
-//                     plan_id,
-//                     customer_id,
-//                     subscription_id,
-//                     email,
-//                     access_token,
-//                     refresh_token
-//                 )
-//             VALUES
-//                 (
-//                     '${record.user_id}',
-//                     '${record.user_name}',
-//                     '${record.map_guild}',
-//                     '${record.map_name}',
-//                     '${record.plan_id}',
-//                     '${record.stripe_id}',
-//                     '${record.sub_id}',
-//                     '${record.email}',
-//                     '${record.access_token}',
-//                     '${record.refresh_token}'
-//                 );
-//         `);
-//     });
-// }
-// setTimeout(() => {
-//     migrate();
-// }, 5000);
-
+setTimeout(async () => {
+    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Audits...`);
+    await stripeAudit();
+    await databaseAudit();
+    await guildsAudit();
+    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Audit Complete.`);
+}, 10000);
 
 
 module.exports = StripeClient;

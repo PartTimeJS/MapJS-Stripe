@@ -189,4 +189,4 @@ app.use('/api', requestRateLimiter);
 app.use('/api', apiRoutes);
 
 // Start listener
-app.listen(config.port, config.interface, () => console.log(`Listening on port ${config.port}...`));
+app.listen(config.port, config.interface, () => console.log(`[MapJS] [index.js] Listening on port ${config.port}...`));
