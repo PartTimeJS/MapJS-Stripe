@@ -17,7 +17,7 @@ class StripeClient {
 
     constructor(user) {
         this.userId = user.user_id;
-        this.userName = user.user_name;
+        this.userName = user.username;
         this.guildId = user.guild_id;
         this.guildName = user.guild_name;
         this.donorRole = user.donor_role;
@@ -31,7 +31,7 @@ class StripeClient {
 
     setClientInfo(user) {
         this.userId = user.user_id;
-        this.userName = user.user_name;
+        this.userName = user.username;
         this.guildId = user.guild_id;
         this.guildName = user.guild_name;
         this.donorRole = user.donor_role;
@@ -82,7 +82,7 @@ class StripeClient {
     }
 
 
-    async retrieveSetupIntent(setup_intent) {
+    retrieveSetupIntent(setup_intent) {
         return new Promise(async function (resolve) {
             let intent = await stripe.setupIntents.retrieve(setup_intent);
             return resolve(intent);
@@ -392,7 +392,7 @@ class StripeClient {
     // }
 
 
-    async cancelSubscription() {
+    cancelSubscription() {
         return new Promise((resolve) => {
             stripe.subscriptions.update(
                 this.subscriptionId, {
@@ -476,7 +476,7 @@ class StripeClient {
 }
 
 
-async function identifyGuild(data) {
+function identifyGuild(data) {
     return new Promise((resolve) => {
         for (let d = 0, dlen = discords.length; d < dlen; d++) {
             if (data.plan_id) {
@@ -496,7 +496,7 @@ async function identifyGuild(data) {
 }
 
 
-async function customersAudit(customers) {
+function customersAudit(customers) {
     return new Promise((resolve) => {
         for (let c = 0, clen = customers.length; c < clen; c++) {
             const stripeCustomer = customers[c];
@@ -522,22 +522,32 @@ async function customersAudit(customers) {
                         }
                         const record = await customer.fetchRecordByCustomer();
                         if (record) {
-                            if (stripeCustomer.name !== (record.user_name + ' - ' + record.user_id)) {
+                            if (stripeCustomer.name !== (record.username + ' - ' + record.user_id)) {
                                 customer.setClientInfo(record);
                                 customer.updateCustomerName();
                             }
                             if (record.user_id === customer.userId) {
                                 const user = new DiscordClient(record);
                                 user.donorRole = guild.role;
-                                user.assigned = await user.assignDonorRole();
-                                if (user.assigned) {
-                                    console.log(stripeCustomer.subscriptions.data[0]);
-                                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) found without a Donor Role.`);
-                                    user.sendChannelEmbed(guild.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
-                                    user.sendChannelEmbed(guild.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
+                                const valid = await customer.validateCustomer();
+                                if(valid){
+                                    user.assigned = await user.assignDonorRole();
+                                    if (user.assigned) {
+                                        console.log(stripeCustomer.subscriptions.data[0]);
+                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.username} (${record.user_id}) found without a Donor Role.`);
+                                        user.sendChannelEmbed(guild.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
+                                        user.sendChannelEmbed(guild.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
+                                    }
+                                } else {
+                                    user.removed = await user.removeDonorRole();
+                                    if (user.removed) {
+                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Invalid Customer ${record.username} (${record.user_id}) found with a Donor Role.`);
+                                        user.sendChannelEmbed(guild.log_channel, 'FF0000', 'Invalid Customer found with a Donor Role 🔎', '');
+                                        user.sendChannelEmbed(guild.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                                    }
                                 }
                             } else {
-                                console.log(`[MapJS] [${getTime()}] [services/stripe.js] Customer user_id (${stripeCustomer.name}) does not match the db user_id ${(record.user_name + ' - ' + record.user_id)}.`);
+                                console.log(`[MapJS] [${getTime()}] [services/stripe.js] Customer user_id (${stripeCustomer.name}) does not match the db user_id ${(record.username + ' - ' + record.user_id)}.`);
                                 customer.clearDbRecord();
                             }
                         } else {
@@ -561,9 +571,9 @@ async function customersAudit(customers) {
 }
 
 
-async function databaseAudit() {
+function databaseAudit() {
     return new Promise(async (resolve) => {
-        console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Database Audit...`);
+        console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Database Audit... (2 of 3)`);
         const records = await db.query(`SELECT * FROM ${config.db.customer_table} WHERE customer_id is NOT NULL AND customer_id != 'Lifetime';`);
         for (let r = 0, rlen = records.length; r < rlen; r++) {
             const record = records[r];
@@ -572,7 +582,6 @@ async function databaseAudit() {
                     guild_id: record.guild_id
                 });
                 const user = new DiscordClient(record);
-                console.log('role', discord.role);
                 user.donorRole = discord.role;
                 record.map_url = discord.map_url;
                 const member = await user.checkIfMember(record.guild_id);
@@ -581,20 +590,24 @@ async function databaseAudit() {
                     const valid = await customer.validateCustomer();
                     if (valid) {
                         if (!record.guild_name || record.guild_name == 'null') {
-                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating guild_name for ${record.user_name} (${record.user_id}).`);
+                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating guild_name for ${record.username} (${record.user_id}).`);
                             db.query(`UPDATE ${config.db.customer_table} SET guild_name = '${discord.name}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
                         }
                         if (!record.subscription_id || record.subscription_id == 'null') {
-                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating subscription_id for ${record.user_name} (${record.user_id}).`);
+                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating subscription_id for ${record.username} (${record.user_id}).`);
                             db.query(`UPDATE ${config.db.customer_table} SET subscription_id = '${customer.subscriptionId}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
                         }
+                        if (!record.guild_name || record.guild_name !== discord.name) {
+                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating guild_name for ${record.username} (${record.user_id}).`);
+                            db.query(`UPDATE ${config.db.customer_table} SET guild_name = '${discord.name}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
+                        }
                         if (!record.plan_id || record.plan_id == 'null') {
-                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating plan_id for ${record.user_name} (${record.user_id}).`);
+                            console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating plan_id for ${record.username} (${record.user_id}).`);
                             db.query(`UPDATE ${config.db.customer_table} SET plan_id = '${discord.plan_id}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
                         }
                         user.assigned = await user.assignDonorRole();
                         if (user.assigned) {
-                            console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) found without a Donor Role.`);
+                            console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.username} (${record.user_id}) found without a Donor Role.`);
                             user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
                             user.sendChannelEmbed(discord.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
                         }
@@ -610,7 +623,7 @@ async function databaseAudit() {
                     }
                 } else {
                     if (!record.customer_id) {
-                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) no longer appears to be a member of ${record.guild_name} (${record.guild_id}).`);
+                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] ${record.username} (${record.user_id}) no longer appears to be a member of ${record.guild_name} (${record.guild_id}).`);
                         //db.query(`DELETE FROM ${config.db.customer_table} WHERE user_id = '${record.user_id}' AND guild_id = '${record.guild_id}'`);
                     }
                 }
@@ -624,13 +637,12 @@ async function databaseAudit() {
 }
 
 
-async function guildsAudit() {
+function guildsAudit() {
     return new Promise(async (resolve) => {
-        console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Guild Audit.`);
+        console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Guild Audit. (3 of 3)`);
         for (let d = 0, dlen = discords.length; d < dlen; d++) {
             const discord = discords[d];
             discord.multiplier = (d + 1);
-            console.log(discord.role + ' ' + discord.name);
             if (discord.role && discord.name != 'test') {
                 const guild = new DiscordClient({
                     guild_id: discord.id,
@@ -649,7 +661,7 @@ async function guildsAudit() {
 }
 
 
-async function membersAudit(discord, members) {
+function membersAudit(discord, members) {
     return new Promise((resolve) => {
         for (let m = 0, mlen = members.length; m < mlen; m++) {
             if (config.ignored_users.includes(members[m].id)) {
@@ -673,8 +685,8 @@ async function membersAudit(discord, members) {
                     donor_role: discord.role
                 });
                 const record = await customer.fetchRecordByUser();
-                record.donor_role = discord.role;
                 if (record) {
+                    record.donor_role = discord.role;
                     customer.setClientInfo(record);
                     user.setClientInfo(record);
                     const userRoles = await user.getUserRoles();
@@ -685,12 +697,12 @@ async function membersAudit(discord, members) {
                                 if (valid) {
                                     user.assigned = await user.assignDonorRole();
                                     if (user.assigned) {
-                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) found without a Donor Role.`);
+                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.username} (${record.user_id}) found without a Donor Role.`);
                                         user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
                                         user.sendChannelEmbed(discord.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
                                     }
                                 } else {
-                                    console.log(`membersAudit: Found invalid customer: ${record.user_name} ${record.customer_id}`);
+                                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Found invalid customer: ${record.username} ${record.customer_id}`);
                                     user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Invalid Customer Found 🔎', '');
                                     user.removed = await user.removeDonorRole();
                                     if (user.removed) {
@@ -698,7 +710,7 @@ async function membersAudit(discord, members) {
                                     }
                                 }
                             } else {
-                                console.log(`membersAudit: User's plan (${record.plan_id}) does not match any discord plans. Clearing customer data for ${record.user_name} in the db record.`);
+                                console.log(`[MapJS] [${getTime()}] [services/stripe.js] User's plan (${record.plan_id}) does not match any discord plans. Clearing customer data for ${record.username} in the db record.`);
                                 customer.clearDbRecord();
                                 user.removed = await user.removeDonorRole();
                                 if (user.removed) {
@@ -706,7 +718,7 @@ async function membersAudit(discord, members) {
                                 }
                             }
                         } else {
-                            console.error(`membersAudit: User has no Customer ID in the database. Removing Donor Role from ${record.user_name}`);
+                            console.error(`[MapJS] [${getTime()}] [services/stripe.js] User has no Customer ID in the database. Removing Donor Role from ${record.username}`);
                             user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Member found without a Customer ID 🔎', '');
                             user.removed = await user.removeDonorRole();
                             if (user.removed) {
@@ -715,18 +727,21 @@ async function membersAudit(discord, members) {
                         }
                     }
                 } else {
-                    console.log(`membersAudit: Record not found for ${customer.userName} (${customer.userId}). Inserting a record.`);
+                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Record not found for ${customer.userName} (${customer.userId}). Inserting a record.`);
                     user.sendChannelEmbed(discord.log_channel, 'FF0000', 'DB Record Not Found for Customer 🔎', '');
                     customer.insertDbRecord();
                 }
+                if ((m + 1) === discords.length) {
+                    return resolve();
+                }
             }, 2000 * m * discord.multiplier);
+            
         }
-        return resolve();
     });
 }
 
 
-async function stripeAudit(last) {
+function stripeAudit(last) {
     return new Promise((resolve) => {
         stripe.customers.list({
             limit: 100,
@@ -738,7 +753,7 @@ async function stripeAudit(last) {
                 return resolve();
             } else {
                 await customersAudit(list.data);
-                if (list.has_more !== false) {
+                if (list.has_more === true) {
                     await stripeAudit(list.data[list.data.length - 1].id);
                     return resolve();
                 } else {
@@ -790,21 +805,21 @@ db.query(auth_log_table).catch(err => {
 });
 
 
-const stripe_log_table = `
-    CREATE TABLE IF NOT EXISTS ${config.db.stripe_log_table}(
-        time varchar(40) NOT NULL,
-        customer_id varchar(50),
-        user_id varchar(40) NOT NULL,
-        user_name varchar(40) NOT NULL,
-        guild_id varchar(40) NOT NULL,
-        guild_name varchar(50) NOT NULL,
-        log varchar(255) NOT NULL,
-        timestamp bigint NOT NULL,
-        PRIMARY KEY (timestamp, user_id) USING BTREE
-    )`;
-db.query(stripe_log_table).catch(err => {
-    console.error('Failed to execute query:', stripe_log_table, '\r\n:Error:', err);
-});
+// const stripe_log_table = `
+//     CREATE TABLE IF NOT EXISTS ${config.db.stripe_log_table}(
+//         time varchar(40) NOT NULL,
+//         customer_id varchar(50),
+//         user_id varchar(40) NOT NULL,
+//         user_name varchar(40) NOT NULL,
+//         guild_id varchar(40) NOT NULL,
+//         guild_name varchar(50) NOT NULL,
+//         log varchar(255) NOT NULL,
+//         timestamp bigint NOT NULL,
+//         PRIMARY KEY (timestamp, user_id) USING BTREE
+//     )`;
+// db.query(stripe_log_table).catch(err => {
+//     console.error('Failed to execute query:', stripe_log_table, '\r\n:Error:', err);
+// });
 
 
 function getTime(type) {
@@ -826,20 +841,20 @@ ontime({
 },
 async function (ot) {
     console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Audits...`);
-    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Customer Audit...`);
+    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Stripe Audit... (1 of 3)`);
     await stripeAudit();
     await databaseAudit();
     await guildsAudit();
     console.info(`[MapJS] [${getTime()}] [services/stripe.js] Audits Complete.`);
     return ot.done();
 });
-setTimeout(async () => {
-    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Audits...`);
-    await stripeAudit();
-    await databaseAudit();
-    await guildsAudit();
-    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Audit Complete.`);
-}, 10000);
+// setTimeout(async () => {
+//     console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Audits... `);
+//     await stripeAudit();
+//     await databaseAudit();
+//     await guildsAudit();
+//     console.info(`[MapJS] [${getTime()}] [services/stripe.js] Audit Complete.`);
+// }, 10000);
 
 
 module.exports = StripeClient;

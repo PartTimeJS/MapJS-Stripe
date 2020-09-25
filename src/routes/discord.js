@@ -3,12 +3,13 @@
 const express = require('express');
 const axios = require('axios');
 const router = express.Router();
+const moment = require('moment');
 
 const DiscordClient = require('../services/discord.js');
 //const utils = require('../services/utils.js');
 
 const config = require('../services/config.js');
-const redirect = encodeURIComponent(config.discord.redirectUri);
+const discords = require('../configs/discords.json').discords;
 
 const catchAsyncErrors = fn => ((req, res, next) => {
     const routePromise = fn(req, res, next);
@@ -17,49 +18,86 @@ const catchAsyncErrors = fn => ((req, res, next) => {
     }
 });
 
+
 router.get('/login', (req, res) => {
+    let discord = '';
+    if(discords.length > 1){
+        for(let d = 0, dlen = discords.length; d < dlen; d++){
+            if(('https://' + req.get('host')) === discords[d].domain){
+                discord = discords[d]; break;
+            }
+        }
+    } else { 
+        discord = discords[0];
+    }
+    req.session.guild_id = discord.id;
+    req.session.plan_id = discord.plan_id;
+    req.session.amt = discord.plan_cost;
+    req.session.donor_role = discord.role;
+    req.session.log_channel = discord.log_channel;
+    req.session.map_name = discord.name;
+    req.session.map_url = discord.domain;
+    const redirect = encodeURIComponent('https://' + req.get('host') + '/api/discord/callback');
     const scope = 'guilds%20identify%20email';
     res.redirect(`https://discordapp.com/api/oauth2/authorize?client_id=${config.discord.clientId}&scope=${scope}&response_type=code&redirect_uri=${redirect}`);
 });
+
 
 router.get('/callback', catchAsyncErrors(async (req, res) => {
     if (!req.query.code) {
         throw new Error('NoCodeProvided');
     }
-    
-    let data = `client_id=${config.discord.clientId}&client_secret=${config.discord.clientSecret}&grant_type=authorization_code&code=${req.query.code}&redirect_uri=${redirect}&scope=guilds%20identify%20email`;
-    let headers = {
+    const redirect = encodeURIComponent('https://' + req.get('host') + '/api/discord/callback');
+    const data = `client_id=${config.discord.clientId}&client_secret=${config.discord.clientSecret}&grant_type=authorization_code&code=${req.query.code}&redirect_uri=${redirect}&scope=guilds%20identify%20email`;
+    const headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
     };
-    
     axios.post('https://discord.com/api/oauth2/token', data, {
         headers: headers
     }).then(async (response) => {
-        DiscordClient.setAccessToken(response.data.access_token);
-        const user = await DiscordClient.getUser();
-
+        const user = new DiscordClient({ access_token: response.data.access_token });
+        const data = await user.getUser();
+        req.session.access_token = response.data.access_token;
         req.session.logged_in = true;
-        req.session.user_id = user.id;
-        req.session.username = `${user.username}#${user.discriminator}`;
-        const perms = await DiscordClient.getPerms(user);
+        req.session.user_id = data.id;
+        req.session.email = data.email;
+        req.session.username = data.username;
+        user.setClientInfo(req.session);
+        const perms = await user.getPerms();
         req.session.perms = perms;
+        user.guildMemberCheck();
         const valid = perms.map !== false;
         req.session.valid = valid;
         req.session.save();
-        if (valid) {
-            console.log(user.id, 'Authenticated successfully.');
-            await DiscordClient.sendMessage(config.discord.logChannelId, `${user.username}#${user.discriminator} (${user.id}) Authenticated successfully.`);
-            res.redirect(`/?token=${response.data.access_token}`);
+        if(valid) {
+            console.log(`[MapJS] [${getTime()}] [services/discord.js] ${user.username} (${user.userId}) - Authenticated successfully.`);
+            await user.sendChannelEmbed(req.session.log_channel, '00FF00', 'Authenticated Successfully.', '');
+            return res.redirect('/');
         } else {
             // Not in Discord server(s) and/or have required roles to view map
-            console.warn(user.id, 'Not authorized to access map');
-            await DiscordClient.sendMessage(config.discord.logChannelId, `${user.username}#${user.discriminator} (${user.id}) Not authorized to access map.`);
-            res.redirect('/login');
+            console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.username} (${user.userId}) - Unauthorized Access Attempt.`);
+            await DiscordClient.sendMessage(config.discord.logChannelId, 'Unauthorized Access Attempt.');
+            return res.redirect('/subscribe'); //res.redirect('/login');
         }
     }).catch(error => {
         console.error(error);
         //throw new Error('UnableToFetchToken');
     });
 }));
+
+
+function getTime (type) {
+    switch (type) {
+        case 'full':
+            return moment().format('dddd, MMMM Do h:mmA');
+        case 'unix':
+            return moment().unix();
+        case 'ms':
+            return moment().valueOf();
+        default:
+            return moment().format('hh:mmA');
+    }
+}
+
 
 module.exports = router;

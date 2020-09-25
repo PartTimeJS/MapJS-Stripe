@@ -1,7 +1,11 @@
+/* eslint-disable no-async-promise-executor */
 /* global BigInt */
 'use strict';
 
+const moment = require('moment');
+
 const config = require('../services/config.js');
+const discords = require('../configs/discords.json').discords;
 
 const DiscordOauth2 = require('discord-oauth2');
 const oauth = new DiscordOauth2();
@@ -10,19 +14,38 @@ const Discord = require('discord.js');
 const client = new Discord.Client();
 
 if (config.discord.enabled) {
-    client.on('ready', () => {
-        console.log(`Logged in as ${client.user.tag}!`);
+    client.on('ready', async () => {
+        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Logged in as ${client.user.tag}!`);
         client.user.setPresence({ activity: { name: config.discord.status, type: 3 } });
     });
-  
+
     client.login(config.discord.botToken);
 }
 
 class DiscordClient {
     //static instance = new DiscordClient();
 
-    constructor(accessToken) {
-        this.accessToken = accessToken;
+    constructor(user) {
+        this.accessToken = user.access_token;
+        this.userId = user.user_id;
+        this.userName = user.username;
+        this.guildId = user.guild_id;
+        this.guildName = user.guild_name;
+        this.donorRole = user.donor_role;
+        this.email = user.email;
+    }
+
+    setClientInfo(user) {
+        this.userId = user.user_id;
+        this.userName = user.username;
+        this.guildId = user.guild_id;
+        this.guildName = user.guild_name;
+        this.donorRole = user.donor_role;
+        this.email = user.email;
+    }
+
+    setUserId(id) {
+        this.userId = id;
     }
 
     setAccessToken(token) {
@@ -39,24 +62,24 @@ class DiscordClient {
         return guildIds;
     }
 
-    async getUserRoles(guildId, userId) {
+    async getUserRoles() {
         try {
             const members = await client.guilds.cache
-                .get(guildId)
+                .get(this.guildId)
                 .members
                 .fetch();
-            const member = members.get(userId);
+            const member = members.get(this.userId);
             const roles = member.roles.cache
                 .filter(x => BigInt(x.id).toString())
                 .keyArray();
             return roles;
         } catch (e) {
-            console.error('Failed to get roles in guild', guildId, 'for user', userId);
+            console.error('Failed to get roles in guild', this.guildId, 'for user', this.userId);
         }
         return [];
     }
 
-    async getPerms(user) {
+    async getPerms() {
         const perms = {
             map: false,
             pokemon: false,
@@ -77,9 +100,8 @@ class DiscordClient {
             devices: false
         };
         const guilds = await this.getGuilds();
-        if (config.discord.allowedUsers.includes(user.id)) {
+        if (config.discord.allowedUsers.includes(this.userId)) {
             Object.keys(perms).forEach((key) => perms[key] = true);
-            console.log(`User ${user.username}#${user.discriminator} (${user.id}) in allowed users list, skipping guild and role check.`);
             return perms;
         }
 
@@ -93,10 +115,12 @@ class DiscordClient {
                 break;
             }
         }
+
         if (blocked) {
             // User is in blocked guild
             return perms;
         }
+
         for (let i = 0; i < config.discord.allowedGuilds.length; i++) {
             // Check if user is in config guilds
             const guildId = config.discord.allowedGuilds[i];
@@ -115,7 +139,7 @@ class DiscordClient {
                 }
                 
                 // If set, grab user roles for guild
-                const userRoles = await this.getUserRoles(guildId, user.id);
+                const userRoles = await this.getUserRoles(guildId);
                 // Check if user has config role assigned
                 for (let k = 0; k < userRoles.length; k++) {
                     // Check if assigned role to user is in config roles
@@ -127,6 +151,185 @@ class DiscordClient {
         }
         return perms;
     }
+
+
+    joinGuild(guild_id) {
+        client.users.fetch(this.userId).then((user) => {
+            let options = {
+                'accessToken': this.accessToken
+            };
+            client.guilds.cache.get(guild_id).addMember(user, options);
+            console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) joined to ${this.guildName}.`);
+            return true;
+        });
+    }
+
+
+    async guildMemberCheck() {
+        const members = await this.fetchGuildMembers(this.guildId);
+        if (members) {
+            const member = members.get(this.userId);
+            if (member){
+                return true;
+            } else {
+                console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) is not a Member of ${this.guildName}.`);
+                //this.joinGuild(discord.id)
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+
+    fetchGuildMembers(guild_id) {
+        return new Promise(async (resolve) => {
+            const members = await client.guilds.cache
+                .get(guild_id)
+                .members
+                .fetch();
+            if(members){
+                return resolve(members);
+            } else {
+                console.error(`[MapJS] [${getTime()}] [services/discord.js] unable to fetch members for ${guild_id}.`);
+                return resolve(false);
+            }
+        });
+    }
+
+
+    fetchGuildDonors() {
+        return new Promise(async (resolve) => {
+            const guild = await client.guilds.cache
+                .get(this.guildId);
+            const members = guild.roles.cache
+                .find(role => role.id === this.donorRole)
+                .members
+                .map(m => m);
+            return resolve(members);
+        });
+    }
+
+
+    fetchAllMembersArray() {
+        return new Promise(async (resolve) => {
+            const allMembers = [];
+            for(let d = 0, dlen = discords.length; d < dlen; d++){
+                let members = await this.fetchGuildMembers(discords[d].id);
+                members = members.map(m => m);
+                for(let m = 0, mlen = members.length; m < mlen; m++){
+                    allMembers.push(members[m]);
+                }
+            }
+            return resolve(allMembers);
+        });
+    }
+
+
+    checkIfMember(guild_id) {
+        return new Promise(async (resolve) => {
+            if(guild_id){
+                let members = await this.fetchGuildMembers(guild_id);
+                if(members){
+                    const member = members.get(this.userId);
+                    if(member){
+                        return resolve(true);
+                    } else {
+                        return resolve(false);
+                    }
+                } else {
+                    return resolve(false);
+                }
+            } else {
+                for(let d = 0, dlen = discords.length; d < dlen; d++){
+                    const discord = discords[d];
+                    let members = await this.fetchGuildMembers(discord.id);
+                    if (members) {
+                        const member = members.get(this.userId);
+                        if (member){
+                            return resolve(true);
+                        } else {
+                            return resolve(false);
+                        }
+                    } else {
+                        return resolve(true);
+                    }
+                }
+            }
+        });
+    }
+
+
+    assignDonorRole() {
+        return new Promise((resolve) => {
+            const member = client.guilds.cache.get(this.guildId).members.cache.get(this.userId);
+            if (!member) {
+                return resolve(false);
+            } else if (!member.roles.cache.has(this.donorRole)) {
+                member.roles.add(this.donorRole);
+                console.log(`[MapJS] [${getTime()}] [services/discord.js] Assigned donor role to ${this.userName} (${this.userId}).`);
+                return resolve(true);
+            } else {
+                return resolve(false);
+            }
+        });
+    }
+
+
+    removeDonorRole() {
+        return new Promise((resolve) => {
+            const member = client.guilds.cache.get(this.guildId).members.cache.get(this.userId);
+            if (!member) {
+                return resolve(false);
+            } else if (member.roles.cache.has(this.donorRole)) {
+                member.roles.remove(this.donorRole);
+                console.log(`[MapJS] [${getTime()}] [services/discord.js] Removed donor role from ${this.userName} (${this.userId}).`);
+                return resolve(true);
+            } else {
+                return resolve(false);
+            }
+        });
+    }
+
+
+    async sendChannelEmbed(channel_id, color, title, body) {
+        const user = await client.users.fetch(this.userId);
+        const channel = await client.channels.cache.get(channel_id);
+        const embed = new Discord.MessageEmbed().setColor(color)
+            .setAuthor(user.username + ` (${user.id})`, user.displayAvatarURL())
+            .setTitle(title)
+            .setFooter(getTime('full'));
+        if(body){
+            embed.setDescription(body);
+        }
+        channel.send(embed).catch(error => {
+            if (error) {
+                console.error(`[MapJS] [${getTime()}] [services/discord.js]`, error);
+            } else {
+                return;
+            }
+        });
+    }
+
+
+    async sendDmEmbed(color, title, body) {
+        const user = await client.users.fetch(this.userId);
+        const embed = new Discord.MessageEmbed().setColor(color)
+            .setAuthor(user.username + ` (${user.id})`, user.displayAvatarURL())
+            .setTitle(title)
+            .setFooter(getTime('full'));
+        if(body){
+            embed.setDescription(body);
+        }
+        user.send(embed).catch(error => {
+            if (error) {
+                console.error(`[MapJS] [${getTime()}] [services/discord.js]`, error);
+            } else {
+                return;
+            }
+        });
+    }
+
 
     async sendMessage(channelId, message) {
         if (!channelId) {
@@ -141,4 +344,19 @@ class DiscordClient {
     }
 }
 
-module.exports = new DiscordClient();
+
+function getTime (type) {
+    switch (type) {
+        case 'full':
+            return moment().format('dddd, MMMM Do h:mmA');
+        case 'unix':
+            return moment().unix();
+        case 'ms':
+            return moment().valueOf();
+        default:
+            return moment().format('hh:mmA');
+    }
+}
+
+
+module.exports = DiscordClient;
