@@ -11,15 +11,6 @@ const defaultData = require('../data/default.js');
 //const InventoryItemId = require('../data/item.js');
 const map = require('../data/map.js');
 
-router.get('/subscribe', (req, res) => {
-    console.log('sending to subscribe');
-    res.redirect('/api/stripe/subscribe');
-});
-
-router.get('/account', (req, res) => {
-    res.redirect('/api/stripe/account');
-});
-
 if (config.discord.enabled) {
     router.get('/login', (req, res) => {
         res.redirect('/api/discord/login');
@@ -148,7 +139,7 @@ const handlePage = async (req, res) => {
                 data.hide_devices = !perms.devices;
             } else {
                 console.log(req.session.username, 'Not authorized to access map');
-                res.redirect('/api/stripe/subscribe'); //res.redirect('/login');
+                res.redirect('/login');
             }
         }
     }

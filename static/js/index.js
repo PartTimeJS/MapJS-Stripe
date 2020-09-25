@@ -3572,6 +3572,26 @@ function getWeatherMarker (weather, ts) {
 }
 
 function getNestMarker (nest, geojson, ts) {
+    const pkmn = masterfile.pokemon[nest.pokemon_id];
+    let typesIcon = '';
+    if (pkmn) {
+        const types = pkmn.types;
+        if (types && types.length > 0) {
+            if (types.length === 2) {
+                typesIcon += `
+                <span class="text-nowrap">
+                    <img src="/img/nest/nest-${types[0].toLowerCase()}.png" class="type-img-1">
+                    <img src="/img/nest/nest-${types[1].toLowerCase()}.png" class="type-img-2">
+                </span>`;
+            } else {
+                typesIcon += `
+                <span class="text-nowrap">
+                    <img src="/img/nest/nest-${types[0].toLowerCase()}.png" class="type-img-single">
+                </span>
+                `;
+            }
+        }
+    }
     const nestPolygonMarker = L.geoJson(geojson, {
         /*
         pointToLayer: function(feature, latlng) {
@@ -3586,7 +3606,6 @@ function getNestMarker (nest, geojson, ts) {
         },
         */
         onEachFeature: function(features, featureLayer) {
-            featureLayer.bindPopup(getNestPopupContent(nest));
             featureLayer.setStyle({
                 //'weight': 1,
                 'stroke': showNestPolygons ? features.properties['stroke'] : 0,
@@ -3600,19 +3619,13 @@ function getNestMarker (nest, geojson, ts) {
                 iconAnchor: [40 / 2, 40 / 2],
                 popupAnchor: [0, 40 * -.6],
                 className: 'nest-marker',
-                html: `<div class="marker-image-holder"><img src="${availableIconStyles[selectedIconStyle].path}/${getPokemonIcon(nest.pokemon_id)}.png"/></div>`
+                html: `<div class="marker-image-holder">${typesIcon}<br><img src="${availableIconStyles[selectedIconStyle].path}/${getPokemonIcon(nest.pokemon_id)}.png"/></div>`,
+                //shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                //shadowSize:  [48, 48]
             });
-            /*
-            const icon = L.icon({
-                iconUrl: '/img/pokemon/' + nest.pokemon_id + '.png',
-                iconSize: [30, 30],
-                iconAnchor: [30 / 2, 30 / 2],
-                popupAnchor:  [0, 30 * -.6],
-                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                shadowSize:  [41, 41]
-            });
-            */
-            L.marker([nest.lat, nest.lon], {icon: icon}).addTo(nestLayer);
+            L.marker([nest.lat, nest.lon], {icon: icon})
+                .bindPopup(getNestPopupContent(nest))
+                .addTo(nestLayer);
         }
     });
     return nestPolygonMarker;
@@ -5114,7 +5127,9 @@ function getTimeSince (date) {
     return str;
 }
 
-const ivFilterPrompt = 'Please enter an IV and/or Level Filter. Examples:\n(A0-1 & D15 & S15 & (CP1400-1500 | CP2400-2500)) | L34-35 | 90-100 | GL1-3 | UL1-3';
+const ivFilterPrompt = '• Use this to enter a specific filter for this Pokemon.\n• These values override any global filters!\n• Refer to the Help button if you are unsure of how to use this. \nExamples:\n((L30-35 & 90-100) | (CP2500-4000 & A15 & D10 S10)) | GL1-10 | UL1-10';
+
+const globalFilterPrompt = `• Use AND when you want to filter the Pokemon you\'ve already selected below.\n• Use OR when you want to set a base filter for all Pokemon, regardless if you\'ve selected them below or not.\n\nIf you are unsure what to put here, click the Help button below.`
 
 function manageIVPopup (id, filter) {
     const result = prompt(ivFilterPrompt, filter[id].filter);
@@ -5169,7 +5184,7 @@ function manageColorPopup (id, filter) {
 }
 
 function manageGlobalIVPopup (id, filter) {
-    const result = prompt(ivFilterPrompt, filter['iv_' + id].filter);
+    const result = prompt(globalFilterPrompt, filter['iv_' + id].filter);
     if (result === null) {
         return false;
     } else if (checkIVFilterValid(result)) {
