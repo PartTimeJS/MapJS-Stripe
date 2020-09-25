@@ -108,6 +108,9 @@ config.json
 stripe.json
 discords.json
 
+src/configs/nginx/*.conf
+src/configs/nginx/*.old
+
 # No logs
 logs
 
