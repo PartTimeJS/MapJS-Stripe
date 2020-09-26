@@ -153,12 +153,12 @@ class DiscordClient {
     }
 
 
-    joinGuild(guild_id) {
+    joinGuild() {
         client.users.fetch(this.userId).then((user) => {
             let options = {
                 'accessToken': this.accessToken
             };
-            client.guilds.cache.get(guild_id).addMember(user, options);
+            client.guilds.cache.get(this.guildId).addMember(user, options);
             console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) joined to ${this.guildName}.`);
             return true;
         });
@@ -173,11 +173,12 @@ class DiscordClient {
                 return true;
             } else {
                 console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) is not a Member of ${this.guildName}.`);
-                //this.joinGuild(discord.id)
+                //this.joinGuild();
                 return false;
             }
         } else {
-            return false;
+            console.error(`[MapJS] [${getTime()}] [services/discord.js] No members found for ${this.guildName} (${this.guildId}).`);
+            return true;
         }
     }
 
