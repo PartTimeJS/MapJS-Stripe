@@ -7,7 +7,7 @@
     "style": "dark",
     "searchMaxResults": 20,
     "sessionSecret": "98ki^e72~!@#(85o3kXLI*#c9wu5l!Z",
-    "maxSessions": 5,
+    "maxSessions": 2,
     "favicon": "favicon.ico",
     "ratelimit": {
         "time": 60,
