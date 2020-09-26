@@ -535,15 +535,15 @@ function customersAudit(customers) {
                                     if (user.assigned) {
                                         console.log(stripeCustomer.subscriptions.data[0]);
                                         console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.username} (${record.user_id}) found without a Donor Role.`);
-                                        user.sendChannelEmbed(guild.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
-                                        user.sendChannelEmbed(guild.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
+                                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
+                                        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
                                     }
                                 } else {
                                     user.removed = await user.removeDonorRole();
                                     if (user.removed) {
                                         console.log(`[MapJS] [${getTime()}] [services/stripe.js] Invalid Customer ${record.username} (${record.user_id}) found with a Donor Role.`);
-                                        user.sendChannelEmbed(guild.log_channel, 'FF0000', 'Invalid Customer found with a Donor Role 🔎', '');
-                                        user.sendChannelEmbed(guild.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Invalid Customer found with a Donor Role 🔎', '');
+                                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                     }
                                 }
                             } else {
@@ -608,16 +608,16 @@ function databaseAudit() {
                         user.assigned = await user.assignDonorRole();
                         if (user.assigned) {
                             console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.username} (${record.user_id}) found without a Donor Role.`);
-                            user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
-                            user.sendChannelEmbed(discord.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
+                            user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
+                            user.sendChannelEmbed(discord.stripe_log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
                         }
                     } else {
                         console.log(`[MapJS] [${getTime()}] [services/stripe.js] Found invalid customer ${user.userName} (${customer.customerId}).`);
-                        user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Invalid Customer Found 🔎', '');
+                        user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'Invalid Customer Found 🔎', '');
                         customer.clearDbRecord();
                         user.removed = await user.removeDonorRole();
                         if (user.removed) {
-                            user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                            user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                         }
 
                     }
@@ -698,15 +698,15 @@ function membersAudit(discord, members) {
                                     user.assigned = await user.assignDonorRole();
                                     if (user.assigned) {
                                         console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.username} (${record.user_id}) found without a Donor Role.`);
-                                        user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
-                                        user.sendChannelEmbed(discord.log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
+                                        user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
+                                        user.sendChannelEmbed(discord.stripe_log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
                                     }
                                 } else {
                                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] Found invalid customer: ${record.username} ${record.customer_id}`);
-                                    user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Invalid Customer Found 🔎', '');
+                                    user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'Invalid Customer Found 🔎', '');
                                     user.removed = await user.removeDonorRole();
                                     if (user.removed) {
-                                        user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                                        user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                     }
                                 }
                             } else {
@@ -714,21 +714,21 @@ function membersAudit(discord, members) {
                                 customer.clearDbRecord();
                                 user.removed = await user.removeDonorRole();
                                 if (user.removed) {
-                                    user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                                    user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                 }
                             }
                         } else {
                             console.error(`[MapJS] [${getTime()}] [services/stripe.js] User has no Customer ID in the database. Removing Donor Role from ${record.username}`);
-                            user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Member found without a Customer ID 🔎', '');
+                            user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'Member found without a Customer ID 🔎', '');
                             user.removed = await user.removeDonorRole();
                             if (user.removed) {
-                                user.sendChannelEmbed(discord.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                                user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                             }
                         }
                     }
                 } else {
                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] Record not found for ${customer.userName} (${customer.userId}). Inserting a record.`);
-                    user.sendChannelEmbed(discord.log_channel, 'FF0000', 'DB Record Not Found for Customer 🔎', '');
+                    user.sendChannelEmbed(discord.stripe_log_channel, 'FF0000', 'DB Record Not Found for Customer 🔎', '');
                     customer.insertDbRecord();
                 }
                 if ((m + 1) === discords.length) {

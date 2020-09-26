@@ -97,12 +97,12 @@ router.post('/webhook', bodyParser.raw({
             const cs_guild = await cs_user.identifyGuild(cs_record);
             console.log('[MapJS] [' + getTime('stamp') + '] [routes/stripe.js] Received Successful Charge webhook for ' + cs_user.userName + ' (' + cs_customer.id + ').');
             if (config.stripe_log) {
-                cs_user.sendChannelEmbed(cs_guild.log_channel, '00FF00', 'Payment Successful! 💰 ', 'Amount: **$' + parseFloat(webhook.data.object.amount / 100).toFixed(2) + '**');
+                cs_user.sendChannelEmbed(cs_guild.stripe_log_channel, '00FF00', 'Payment Successful! 💰 ', 'Amount: **$' + parseFloat(webhook.data.object.amount / 100).toFixed(2) + '**');
             }
             cs_user.donorRole = cs_guild.role;
             const cs_assigned = await cs_user.assignDonorRole();
             if(cs_assigned){
-                cs_user.sendChannelEmbed(cs_guild.log_channel, '00FF00', 'Donor Role Assigned 📝', '');
+                cs_user.sendChannelEmbed(cs_guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
             }
         }, 5000);
         // END 
@@ -119,12 +119,12 @@ router.post('/webhook', bodyParser.raw({
         const sc_user = new DiscordClient(sc_record);
         const sc_guild = await sc_user.identifyGuild(sc_record);
         if (config.stripe_log) {
-            sc_user.sendChannelEmbed(sc_guild.log_channel, 'FF0000', 'Subscription Deleted 📉', '');
+            sc_user.sendChannelEmbed(sc_guild.stripe_log_channel, 'FF0000', 'Subscription Deleted 📉', '');
         }
         sc_user.donorRole = sc_guild.role;
         const sc_removed = await sc_user.removeDonorRole();
         if(sc_removed){
-            sc_user.sendChannelEmbed(sc_guild.log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+            sc_user.sendChannelEmbed(sc_guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
         }
         // END
         return;
@@ -145,7 +145,7 @@ router.post('/webhook', bodyParser.raw({
             pf_user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', `Uh Oh! Your Donor Payment failed to ${pf_guild.name}.\nThis was attempt ${webhook.data.object.attempt_count}/5. \nPlease visit ${config.map_url}/subcribe to update your payment information.`);
         }
         if(pf_removed){
-            pf_user.sendChannelEmbed(pf_guild.log_channel, '00FF00', 'Donor Role Assigned! 📝', '');
+            pf_user.sendChannelEmbed(pf_guild.stripe_log_channel, '00FF00', 'Donor Role Assigned! 📝', '');
         }
         // END
         return;
