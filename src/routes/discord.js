@@ -20,7 +20,7 @@ const catchAsyncErrors = fn => ((req, res, next) => {
 
 
 router.get('/login', (req, res) => {
-    let discord = '';
+    let discord;
     if(discords.length > 1){
         for(let d = 0, dlen = discords.length; d < dlen; d++){
             if(('https://' + req.get('host')) === discords[d].domain){
