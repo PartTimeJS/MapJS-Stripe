@@ -3,6 +3,7 @@
 const path = require('path');
 const compression = require('compression');
 const express = require('express');
+const moment = require('moment');
 //const cookieSession = require('cookie-session');
 const session = require('express-session');
 const app = express();
@@ -136,45 +137,45 @@ app.use(async (req, res, next) => {
     if (config.discord.enabled && (req.path === '/api/discord/login' || req.path === '/login')) {
         return next();
     }
-    if (!config.discord.enabled || req.session.logged_in) {
+    if (req.session.logged_in) {
         defaultData.logged_in = true;
         defaultData.username = req.session.username;
-        if (!config.discord.enabled) {
-            return next();
-        }
         if (!(await isValidSession(req.session.user_id))) {
             console.debug('[Session] Detected multiple sessions, clearing old ones...');
             await clearOtherSessions(req.session.user_id, req.sessionID);
         }
         if (!req.session.valid) {
             console.error('[index.js] Invalid user authenticated', req.session.user_id);
-            res.redirect('/subscribe'); //res.redirect('/login');
+            res.redirect('/subscribe');
             return;
         }
-        const user = new DiscordClient(req.session);
-        const perms = await user.getPerms();
-        defaultData.hide_map = !perms.map;
+        if(!req.session.perms || !req.session.updated || req.session.updated < (moment().unix() - 600)){
+            const user = new DiscordClient(req.session);
+            const perms = await user.getPerms();
+            req.session.perms = perms;
+        }
+        defaultData.hide_map = !req.session.perms.map;
         if (defaultData.hide_map) {
             // No view map permissions, go to login screen
             console.error('[index.js] Invalid view map permissions for user', req.session.user_id);
             res.redirect('/subscribe');
             return;
         }
-        defaultData.hide_pokemon = !perms.pokemon;
-        defaultData.hide_raids = !perms.raids;
-        defaultData.hide_gyms = !perms.gyms;
-        defaultData.hide_pokestops = !perms.pokestops;
-        defaultData.hide_quests = !perms.quests;
-        defaultData.hide_lures = !perms.lures;
-        defaultData.hide_invasions = !perms.invasions;
-        defaultData.hide_spawnpoints = !perms.spawnpoints;
-        defaultData.hide_iv = !perms.iv;
-        defaultData.hide_cells = !perms.s2cells;
-        defaultData.hide_submission_cells = !perms.submissionCells;
-        defaultData.hide_nests = !perms.nests;
-        defaultData.hide_scan_areas = !perms.scanAreas;
-        defaultData.hide_weather = !perms.weather;
-        defaultData.hide_devices = !perms.devices;
+        defaultData.hide_pokemon = !req.session.perms.pokemon;
+        defaultData.hide_raids = !req.session.perms.raids;
+        defaultData.hide_gyms = !req.session.perms.gyms;
+        defaultData.hide_pokestops = !req.session.perms.pokestops;
+        defaultData.hide_quests = !req.session.perms.quests;
+        defaultData.hide_lures = !req.session.perms.lures;
+        defaultData.hide_invasions = !req.session.perms.invasions;
+        defaultData.hide_spawnpoints = !req.session.perms.spawnpoints;
+        defaultData.hide_iv = !req.session.perms.iv;
+        defaultData.hide_cells = !req.session.perms.s2cells;
+        defaultData.hide_submission_cells = !req.session.perms.submissionCells;
+        defaultData.hide_nests = !req.session.perms.nests;
+        defaultData.hide_scan_areas = !req.session.perms.scanAreas;
+        defaultData.hide_weather = !req.session.perms.weather;
+        defaultData.hide_devices = !req.session.perms.devices;
         return next();
     }
     res.redirect('/login');
