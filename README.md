@@ -1,3 +1,17 @@
+# Stripe Addon Fork for MapJS
+
+Full Stripe Management Fork of MapJS. Master fork updates are pulled weekly. 
+
+Features:
+- Automated redirect to payment page if no subscription tied to a users discord account.
+- Account Page for user subscription management (WIP)
+- 3 Stage Customer Auditing for Data Accuracy
+- 3 Levels of logging. Console, Discord, and database logs that fulfill chargeback disputing requirements. 
+
+
+
+#Original MapJS ReadMe:
+
 [![Documentation Status](https://readthedocs.org/projects/mapjs/badge/?version=latest)](https://mapjs.readthedocs.io/en/latest/?badge=latest)
 ![Node.js CI](https://github.com/versx/MapJS/workflows/Node.js%20CI/badge.svg)
 ![Lint](https://github.com/versx/MapJS/workflows/Lint/badge.svg)  
