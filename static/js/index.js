@@ -3614,10 +3614,11 @@ function getNestMarker (nest, geojson, ts) {
                 'fillColor': showNestPolygons ? features.properties['fill'] : 0,
                 'fillOpacity': showNestPolygons ? features.properties['fill-opacity'] : 0
             });
+            const anchorY = 56 * .9375;
             const icon = L.divIcon({
                 iconSize: [40, 40],
-                iconAnchor: [40 / 2, 40 / 2],
-                popupAnchor: [0, 40 * -.6],
+                iconAnchor: [40 / 2, anchorY],
+                popupAnchor: [0, -8 - anchorY],
                 className: 'nest-marker',
                 html: `<div class="marker-image-holder">${typesIcon}<br><img src="${availableIconStyles[selectedIconStyle].path}/${getPokemonIcon(nest.pokemon_id)}.png"/></div>`,
                 //shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -3889,11 +3890,11 @@ function getGymMarkerIcon (gym, ts) {
     let iconHtml = '';
     if (gym.in_battle) {
         // Gym Battle
-        gymSize = 55; //Set Larger Size For Battle
+        gymSize = 55 - 5; //Set Larger Size For Battle
         iconHtml = `<div class="marker-image-holder"><img src="/img/battle/${gym.team_id}_${size}.png"/></div>`;
     } else {
         // Gym
-        gymSize = getGymSize(gym.team_id);
+        gymSize = getGymSize(gym.team_id) - 5;
         iconHtml = `<div class="marker-image-holder"><img src="/img/gym/${gym.team_id}_${size}.png"/></div>`;
     }
     const iconAnchorY = gymSize * .849; //availableIconStyles[selectedIconStyle].gymAnchorY;
@@ -3918,16 +3919,17 @@ function getGymMarkerIcon (gym, ts) {
         raidSize = getRaidSize('l' + raidLevel);
         raidIcon = `/img/egg/${raidLevel}.png`;
     } else {
-        raidIcon = `/img/egg/${gym.team_id}.png`;
+        raidSize = (getRaidSize('l' + raidLevel) / 1.5);
+        raidIcon = `/img/shield/${gym.team_id}.png`;
     }
     if (raidSize > 0) {
         //let offsetY = gymSize * (availableIconStyles[selectedIconStyle].raidOffsetY || .269) - raidSize;
-        offsetY = gymSize * .269 - raidSize;
+        offsetY = gymSize * .269 - raidSize - 2;
         iconHtml += `<div class="marker-image-holder top-overlay" style="width:${raidSize}px;height:${raidSize}px;left:50%;transform:translateX(-50%);top:${offsetY}px;"><img src="${raidIcon}"/></div>`;
         popupAnchorY += offsetY;
     } else {
-        offsetY = gymSize * .269 - 30;
-        iconHtml += `<div class="marker-image-holder top-overlay" style="width:30px;height:30px;left:50%;transform:translateX(-50%);top:${offsetY}px;"><img src="/img/shield/${gym.team_id}.png"/></div>`;
+        offsetY = gymSize * .269 - raidSize - 2;
+        iconHtml += `<div class="marker-image-holder top-overlay" style="width:${raidSize}px;height:${raidSize}px;left:50%;transform:translateX(-50%);top:${offsetY}px;"><img src="/img/shield/${gym.team_id}.png"/></div>`;
         popupAnchorY += offsetY;
     }
     const icon = L.divIcon({
@@ -5243,7 +5245,7 @@ function manageGlobalStardustCountPopup (id, filter) {
 
 function checkIVFilterValid (filter) {
     const input = filter.toUpperCase();
-    let tokenizer = /\s*([()|&!]|([ADSL]?|CP|[GU]L)\s*([0-9]+(?:\.[0-9]*)?)(?:\s*-\s*([0-9]+(?:\.[0-9]*)?))?)/g;
+    let tokenizer = /\s*([()|&!,]|([ADSL]?|CP|[GU]L)\s*([0-9]+(?:\.[0-9]*)?)(?:\s*-\s*([0-9]+(?:\.[0-9]*)?))?)/g;
     let expectClause = true;
     let stack = 0;
     let lastIndex = 0;
@@ -5279,6 +5281,7 @@ function checkIVFilterValid (filter) {
                 break;
             case '&':
             case '|':
+            case ',':
                 expectClause = true;
                 break;
         }
