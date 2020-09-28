@@ -11,16 +11,23 @@ const defaultData = require('../data/default.js');
 //const InventoryItemId = require('../data/item.js');
 const map = require('../data/map.js');
 
-if (config.discord.enabled) {
-    router.get('/login', (req, res) => {
-        res.redirect('/api/discord/login');
-    });
 
-    router.get('/logout', (req, res) => {
-        req.session = null;
-        res.redirect('/login');
-    });
-}
+router.get('/login', (req, res) => {
+    res.redirect('/api/discord/login');
+});
+
+router.get('/logout', (req, res) => {
+    req.session = null;
+    res.redirect('/login');
+});
+
+router.get('/subscribe', (req, res) => {
+    res.redirect('/api/stripe/subscribe');
+});
+
+router.get('/account', (req, res) => {
+    res.redirect('/api/stripe/account');
+});
 
 // Map endpoints
 router.get(['/', '/index'], async (req, res) => {
@@ -117,7 +124,7 @@ const handlePage = async (req, res) => {
 
     if (!config.discord.enabled || req.session.logged_in) {
         data.logged_in = true;
-        data.username = req.session.username;
+        data.username = req.session.user_name;
         if (config.discord.enabled) {
             if (req.session.valid) {
                 const perms = req.session.perms;
@@ -138,8 +145,8 @@ const handlePage = async (req, res) => {
                 data.hide_weather = !perms.weather;
                 data.hide_devices = !perms.devices;
             } else {
-                console.log(req.session.username, 'Not authorized to access map');
-                res.redirect('/login');
+                console.log(req.session.user_name, 'Not authorized to access map');
+                res.redirect('/subscribe');
             }
         }
     }

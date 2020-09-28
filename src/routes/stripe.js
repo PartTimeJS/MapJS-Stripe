@@ -33,9 +33,9 @@ router.get('/subscribe', async (req, res) => {
         discord = discords[0];
     }
     if(discord){
-        const user = new StripeClient({ user_id: req.session.user_id });
-        const record = await user.findRecordByUser();
-        req.session.map_name = record.map_name;
+        const customer = new StripeClient(req.session);
+        const record = await customer.fetchRecordByUser();
+        req.session.map_name = discord.name;
         req.session.key = discord.test_pk ? discord.test_pk : config.stripe.live_pk;
         req.session.map_url = req.protocol + '://' + req.get('host');
         req.session.plan_id = discord.plan_id;
@@ -44,9 +44,9 @@ router.get('/subscribe', async (req, res) => {
         if(record){
             req.session.customer_id = record.customer_id ? record.customer_id : false;
             req.session.subscription_id = record.subscription_id ? record.subscription_id : false;
-            user.setClientInfo(record);
-            if(user.customerID && user.subscriptionID){
-                req.session.session_id = await user.createSession();
+            customer.setClientInfo(record);
+            if(customer.customerID && customer.subscriptionID){
+                req.session.session_id = await customer.createSession();
                 if(req.session.session_id.error){
                     res.render('generalError.html', req.session);
                 } else {
@@ -56,8 +56,8 @@ router.get('/subscribe', async (req, res) => {
                 res.render('subscribe', req.session);
             }
         } else {
-            user.setClientInfo(record);
-            user.insertDbRecord();
+            customer.setClientInfo(record);
+            customer.insertDbRecord();
             res.redirect('/api/stripe/subscribe');
         }
     } else {
@@ -85,12 +85,16 @@ router.get('/stripeError', (req, res) => {
 router.post('/webhook', bodyParser.raw({
     type: 'application/json'
 }), async (webhook, res) => {
+    webhook = webhook.body;
     res.sendStatus(200);
-
+    
     if(webhook.type === 'charge.succeeded'){
         setTimeout(async () => {
             const cs_customer = new StripeClient({ 
-                customer_id: webhook.data.object.customer 
+                user_id: (webhook.data.object.customer_name.split(' - ')[1]),
+                user_name: (webhook.data.object.customer_name.split(' - ')[0]),
+                customer_id: webhook.data.object.customer,
+                subscription_id: webhook.data.object.subscription
             });
             const cs_record = cs_customer.fetchRecordByCustomer();
             const cs_user = new DiscordClient(cs_record);
@@ -110,43 +114,59 @@ router.post('/webhook', bodyParser.raw({
 
     } else if (webhook.type === 'customer.subscription.cancelled'){
         const sc_customer = new StripeClient({ 
-            customer_id: webhook.data.object.customer 
+            user_id: (webhook.data.object.customer_name.split(' - ')[1]),
+            user_name: (webhook.data.object.customer_name.split(' - ')[0]),
+            customer_id: webhook.data.object.customer,
+            subscription_id: webhook.data.object.subscription
         });
         const sc_record = await sc_customer.fetchRecordByCustomer();
-        sc_customer.setClientInfo(sc_record);
-        sc_customer.deleteCustomer();
-        sc_customer.clearDbRecord();
-        const sc_user = new DiscordClient(sc_record);
-        const sc_guild = await sc_user.identifyGuild(sc_record);
-        if (sc_guild.stripe_log_channel) {
-            sc_user.sendChannelEmbed(sc_guild.stripe_log_channel, 'FF0000', 'Subscription Deleted 📉', '');
+        if(sc_record){
+            sc_customer.setClientInfo(sc_record);
+            sc_customer.deleteCustomer();
+            sc_customer.clearDbRecord();
+            const sc_user = new DiscordClient(sc_record);
+            const sc_guild = await sc_user.identifyGuild(sc_record);
+            if (sc_guild.stripe_log_channel) {
+                sc_user.sendChannelEmbed(sc_guild.stripe_log_channel, 'FF0000', 'Subscription Deleted 📉', '');
+            }
+            sc_user.donorRole = sc_guild.role;
+            const sc_removed = await sc_user.removeDonorRole();
+            if(sc_removed && sc_guild.stripe_log_channel){
+                sc_user.sendChannelEmbed(sc_guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+            }
+        } else {
+            console.error(`[MapJS] [${getTime()}] [routes/stripe.js] No DB record found for Customer.`, webhook);
         }
-        sc_user.donorRole = sc_guild.role;
-        const sc_removed = await sc_user.removeDonorRole();
-        if(sc_removed && sc_guild.stripe_log_channel){
-            sc_user.sendChannelEmbed(sc_guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
-        }
+        
         // END
         return;
     
     } else if (webhook.type ===  'charge.failed' || webhook.type === 'invoice.payment_failed'){
-        const pf_customer = new StripeClient({ 
-            customer_id: webhook.data.object.customer 
+        const pf_customer = new StripeClient({
+            user_id: (webhook.data.object.customer_name.split(' - ')[1]),
+            user_name: (webhook.data.object.customer_name.split(' - ')[0]),
+            customer_id: webhook.data.object.customer,
+            subscription_id: webhook.data.object.subscription
         });
-        const pf_record = pf_customer.fetchRecordByCustomer();
-        const pf_user = new DiscordClient(pf_record);
-        const pf_guild = await pf_user.identifyGuild(pf_record);
-        pf_user.donorRole = pf_guild.role;
-        const pf_removed = await pf_user.removeDonorRole();
-        if (pf_guild.stripe_log_channel) {
-            pf_user.sendChannelEmbed(pf_user.userId, 'FF0000', 'Payment Failed ⛔', `Attempt Count: **${webhook.data.object.attempt_count}** of **5**`);
+        const pf_record = await pf_customer.fetchRecordByCustomer();
+        if(pf_record){
+            const pf_guild = await pf_customer.identifyGuild(pf_record);
+            const pf_user = new DiscordClient(pf_record);
+            pf_user.donorRole = pf_guild.role;
+            const pf_removed = await pf_user.removeDonorRole();
+            if (pf_guild.stripe_log_channel) {
+                pf_user.sendChannelEmbed(pf_user.userId, 'FF0000', 'Payment Failed ⛔', `Attempt Count: **${webhook.data.object.attempt_count}** of **5**`);
+            }
+            if (webhook.data.object.attempt_count != 5) {
+                pf_user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', `Uh Oh! Your Donor Payment failed to ${pf_guild.name}.\nThis was attempt ${webhook.data.object.attempt_count}/5. \nPlease visit ${pf_guild.domain}/subscribe to update your payment information.`);
+            }
+            if(pf_removed && pf_guild.stripe_log_channel){
+                pf_user.sendChannelEmbed(pf_guild.stripe_log_channel, '00FF00', 'Donor Role Assigned! 📝', '');
+            }
+        }  else {
+            console.error(`[MapJS] [${getTime()}] [routes/stripe.js] No DB record found for Customer.`, webhook);
         }
-        if (webhook.data.object.attempt_count != 5) {
-            pf_user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', `Uh Oh! Your Donor Payment failed to ${pf_guild.name}.\nThis was attempt ${webhook.data.object.attempt_count}/5. \nPlease visit ${pf_guild.domain}/subscribe to update your payment information.`);
-        }
-        if(pf_removed && pf_guild.stripe_log_channel){
-            pf_user.sendChannelEmbed(pf_guild.stripe_log_channel, '00FF00', 'Donor Role Assigned! 📝', '');
-        }
+        
         // END
         return;
     }

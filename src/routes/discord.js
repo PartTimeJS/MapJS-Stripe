@@ -6,6 +6,7 @@ const router = express.Router();
 const moment = require('moment');
 
 const DiscordClient = require('../services/discord.js');
+const StripeClient = require('../services/stripe.js');
 //const utils = require('../services/utils.js');
 
 const config = require('../services/config.js');
@@ -64,8 +65,9 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         req.session.logged_in = true;
         req.session.user_id = data.id;
         req.session.email = data.email;
-        req.session.username = data.username;
+        req.session.user_name = data.username;
         user.setClientInfo(req.session);
+        const customer = new StripeClient(req.session);
         const perms = await user.getPerms();
         req.session.perms = perms;
         const isMember = user.guildMemberCheck();
@@ -81,12 +83,14 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
             req.session.save();
             if(valid) {
                 console.log(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Authenticated successfully.`);
+                customer.insertAccessLog('Authenticated Successfully using Discord Oauth.');
                 if(req.session.access_log_channel){
                     await user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully.', '');
                 }
                 return res.redirect('/');
             } else {
                 console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Unauthorized Access Attempt.`);
+                customer.insertAccessLog('Unauthorized Access Attempt using Discord Oauth.');
                 if(req.session.access_log_channel){
                     await user.sendChannelEmbed(req.session.access_log_channel, 'Unauthorized Access Attempt.', '');
                 }

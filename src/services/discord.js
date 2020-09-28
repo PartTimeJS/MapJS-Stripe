@@ -23,33 +23,26 @@ if (config.discord.enabled) {
 }
 
 class DiscordClient {
-    //static instance = new DiscordClient();
 
     constructor(user) {
         this.accessToken = user.access_token;
         this.userId = user.user_id;
-        this.userName = user.username;
+        this.userName = user.user_name;
         this.guildId = user.guild_id;
         this.guildName = user.guild_name;
         this.donorRole = user.donor_role;
+        this.mapUrl = user.map_url;
         this.email = user.email;
     }
 
     setClientInfo(user) {
         this.userId = user.user_id;
-        this.userName = user.username;
+        this.userName = user.user_name;
         this.guildId = user.guild_id;
         this.guildName = user.guild_name;
         this.donorRole = user.donor_role;
+        this.mapUrl = user.map_url;
         this.email = user.email;
-    }
-
-    setUserId(id) {
-        this.userId = id;
-    }
-
-    setAccessToken(token) {
-        this.accessToken = token;
     }
 
     async getUser() {
@@ -151,6 +144,13 @@ class DiscordClient {
         }
         return perms;
     }
+
+
+    // validateUser() {
+    //     return new Promise(async (resolve) => {
+
+    //     });
+    // }
 
 
     joinGuild() {
@@ -266,7 +266,7 @@ class DiscordClient {
             const member = client.guilds.cache.get(this.guildId).members.cache.get(this.userId);
             if (!member) {
                 return resolve(false);
-            } else if (!member.roles.cache.has(this.donorRole)) {
+            } else if (!member.roles.cache.has(this.donorRole.toString())) {
                 member.roles.add(this.donorRole);
                 console.log(`[MapJS] [${getTime()}] [services/discord.js] Assigned donor role to ${this.userName} (${this.userId}).`);
                 return resolve(true);
@@ -279,10 +279,10 @@ class DiscordClient {
 
     removeDonorRole() {
         return new Promise((resolve) => {
-            const member = client.guilds.cache.get(this.guildId).members.cache.get(this.userId);
+            const member = client.guilds.cache.get(this.guildId.toString()).members.cache.get(this.userId.toString());
             if (!member) {
                 return resolve(false);
-            } else if (member.roles.cache.has(this.donorRole)) {
+            } else if (member.roles.cache.has(this.donorRole.toString())) {
                 member.roles.remove(this.donorRole);
                 console.log(`[MapJS] [${getTime()}] [services/discord.js] Removed donor role from ${this.userName} (${this.userId}).`);
                 return resolve(true);
@@ -294,8 +294,8 @@ class DiscordClient {
 
 
     async sendChannelEmbed(channel_id, color, title, body) {
-        const user = await client.users.fetch(this.userId);
-        const channel = await client.channels.cache.get(channel_id);
+        const user = await client.users.fetch(this.userId.toString());
+        const channel = await client.channels.cache.get(channel_id.toString());
         const embed = new Discord.MessageEmbed().setColor(color)
             .setAuthor(user.username + ` (${user.id})`, user.displayAvatarURL())
             .setTitle(title)
@@ -314,7 +314,7 @@ class DiscordClient {
 
 
     async sendDmEmbed(color, title, body) {
-        const user = await client.users.fetch(this.userId);
+        const user = await client.users.fetch(this.userId.toString());
         const embed = new Discord.MessageEmbed().setColor(color)
             .setAuthor(user.username + ` (${user.id})`, user.displayAvatarURL())
             .setTitle(title)

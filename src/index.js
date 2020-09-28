@@ -12,6 +12,7 @@ const i18n = require('i18n');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const DiscordClient = require('./services/discord.js');
+const StripeClient = require('./services/stripe.js');
 const config = require('./services/config.js');
 const defaultData = require('./data/default.js');
 const apiRoutes = require('./routes/api.js');
@@ -131,28 +132,40 @@ app.use('/api/stripe', stripeRoutes);
 
 // Login middleware
 app.use(async (req, res, next) => {
-    if (config.discord.enabled && (req.path === '/api/stripe/subscribe' || req.path === '/subscribe')) {
+    req.session.ip_address = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    req.session.map_url = 'https://' + req.get('host');
+    if (config.discord.enabled && (req.path.includes('/api/stripe/') || req.path === '/subscribe')) {
         return next();
     }
-    if (config.discord.enabled && (req.path === '/api/discord/login' || req.path === '/login')) {
+    if (config.discord.enabled && (req.path.includes('/api/discord/') || req.path === '/login')) {
         return next();
     }
-    if (req.session.logged_in) {
+    if (req.session.user_id && req.session.logged_in) {
         const user = new DiscordClient(req.session);
+        const customer = new StripeClient(req.session);
         defaultData.logged_in = true;
-        defaultData.username = req.session.username;
+        defaultData.username = req.session.user_name;
         if (!req.session.valid) {
-            console.error('[index.js] Invalid user authenticated', req.session.user_id);
+            console.error(`[MapJS] [${getTime()}] [index.js] Invalid User Authenticated, ${user.userName} (${user.userId})`);
+            customer.insertAccessLog('Invalid User Authentication via Cookie Session.');
             res.redirect('/subscribe');
             return;
         }
         if (!(await isValidSession(req.session.user_id))) {
-            console.debug(`[index.js] Detected multiple sessions for ${user.userName} (${user.userId}). Clearing old ones...`);
+            console.debug(`[MapJS] [${getTime()}] [index.js] Detected multiple sessions for ${user.userName} (${user.userId}). Clearing old ones...`);
+            customer.insertAccessLog('Multiple Sessions Detected and Cleared Older Sessions.');
+            if(req.session.access_log_channel){
+                await user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Cleared Excess Sessions.', '');
+            }
             await clearOtherSessions(req.session.user_id, req.sessionID);
         }
         const unix = moment().unix();
         if(!req.session.perms || !req.session.updated || req.session.updated < (unix - 600)){
             req.session.updated = unix;
+            customer.insertAccessLog('Authenticated Successfully via Cookie Session.');
+            if(req.session.access_log_channel){
+                await user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully.', '');
+            }
             req.session.perms = await user.getPerms();
         }
         const perms = req.session.perms;
@@ -160,6 +173,7 @@ app.use(async (req, res, next) => {
         if (defaultData.hide_map) {
             // No view map permissions, go to login screen
             console.error('[index.js] Invalid view map permissions for user', req.session.user_id);
+            customer.insertAccessLog('Invalid Permissions Found via Cookie Session.');
             res.redirect('/subscribe');
             return;
         }
@@ -179,9 +193,6 @@ app.use(async (req, res, next) => {
         defaultData.hide_weather = !perms.weather;
         defaultData.hide_devices = !perms.devices;
         return next();
-
-
-
     }
     res.redirect('/login');
 });
@@ -196,3 +207,16 @@ app.use('/api', apiRoutes);
 
 // Start listener
 app.listen(config.port, config.interface, () => console.log(`[MapJS] [index.js] Listening on port ${config.port}...`));
+
+function getTime(type) {
+    switch (type) {
+        case 'full':
+            return moment().format('dddd, MMMM Do  h:mmA');
+        case 'unix':
+            return moment().unix();
+        case 'ms':
+            return moment().valueOf();
+        default:
+            return moment().format('hh:mmA');
+    }
+}
