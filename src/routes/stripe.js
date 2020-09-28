@@ -36,7 +36,7 @@ router.get('/subscribe', async (req, res) => {
         const user = new StripeClient({ user_id: req.session.user_id });
         const record = await user.findRecordByUser();
         req.session.map_name = record.map_name;
-        req.session.key = discord.test_pk ? discord.test_pk : config.stripe.live_pk;
+        req.session.key = discord.test_pk ? discord.test_pk : config.live_pk;
         req.session.map_url = req.protocol + '://' + req.get('host');
         req.session.plan_id = discord.plan_id;
         req.session.amt = discord.plan_cost;
@@ -61,7 +61,7 @@ router.get('/subscribe', async (req, res) => {
             res.redirect('/api/stripe/subscribe');
         }
     } else {
-        console.error('[routes/stripe.js] No matching discord for ' + req.protocol + '://' + req.get('host'));
+        console.error(`[MapJS] [routes/stripe.js] No matching discord for https://${req.get('host')}`);
         res.redirect('/discordError');
     }
 });
@@ -96,12 +96,12 @@ router.post('/webhook', bodyParser.raw({
             const cs_user = new DiscordClient(cs_record);
             const cs_guild = await cs_user.identifyGuild(cs_record);
             console.log('[MapJS] [' + getTime('stamp') + '] [routes/stripe.js] Received Successful Charge webhook for ' + cs_user.userName + ' (' + cs_customer.id + ').');
-            if (config.stripe_log) {
+            if (cs_guild.stripe_log_channel) {
                 cs_user.sendChannelEmbed(cs_guild.stripe_log_channel, '00FF00', 'Payment Successful! 💰 ', 'Amount: **$' + parseFloat(webhook.data.object.amount / 100).toFixed(2) + '**');
             }
             cs_user.donorRole = cs_guild.role;
             const cs_assigned = await cs_user.assignDonorRole();
-            if(cs_assigned){
+            if(cs_assigned && cs_guild.stripe_log_channel){
                 cs_user.sendChannelEmbed(cs_guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
             }
         }, 5000);
@@ -118,12 +118,12 @@ router.post('/webhook', bodyParser.raw({
         sc_customer.clearDbRecord();
         const sc_user = new DiscordClient(sc_record);
         const sc_guild = await sc_user.identifyGuild(sc_record);
-        if (config.stripe_log) {
+        if (sc_guild.stripe_log_channel) {
             sc_user.sendChannelEmbed(sc_guild.stripe_log_channel, 'FF0000', 'Subscription Deleted 📉', '');
         }
         sc_user.donorRole = sc_guild.role;
         const sc_removed = await sc_user.removeDonorRole();
-        if(sc_removed){
+        if(sc_removed && sc_guild.stripe_log_channel){
             sc_user.sendChannelEmbed(sc_guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
         }
         // END
@@ -138,13 +138,13 @@ router.post('/webhook', bodyParser.raw({
         const pf_guild = await pf_user.identifyGuild(pf_record);
         pf_user.donorRole = pf_guild.role;
         const pf_removed = await pf_user.removeDonorRole();
-        if (config.stripe_log) {
+        if (pf_guild.stripe_log_channel) {
             pf_user.sendChannelEmbed(pf_user.userId, 'FF0000', 'Payment Failed ⛔', `Attempt Count: **${webhook.data.object.attempt_count}** of **5**`);
         }
         if (webhook.data.object.attempt_count != 5) {
-            pf_user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', `Uh Oh! Your Donor Payment failed to ${pf_guild.name}.\nThis was attempt ${webhook.data.object.attempt_count}/5. \nPlease visit ${config.map_url}/subcribe to update your payment information.`);
+            pf_user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', `Uh Oh! Your Donor Payment failed to ${pf_guild.name}.\nThis was attempt ${webhook.data.object.attempt_count}/5. \nPlease visit ${pf_guild.domain}/subscribe to update your payment information.`);
         }
-        if(pf_removed){
+        if(pf_removed && pf_guild.stripe_log_channel){
             pf_user.sendChannelEmbed(pf_guild.stripe_log_channel, '00FF00', 'Donor Role Assigned! 📝', '');
         }
         // END

@@ -10,7 +10,7 @@ const MySQLConnector = require('./mysql.js');
 const db = new MySQLConnector(config.db);
 
 const DiscordClient = require('./discord.js');
-const stripe = require('stripe')(config.stripe.live_sk);
+const stripe = require('stripe')(config.live_sk);
 
 class StripeClient {
 
