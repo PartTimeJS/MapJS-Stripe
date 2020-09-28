@@ -80,13 +80,13 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
             req.session.valid = valid;
             req.session.save();
             if(valid) {
-                console.log(`[MapJS] [${getTime()}] [services/discord.js] ${user.username} (${user.userId}) - Authenticated successfully.`);
+                console.log(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Authenticated successfully.`);
                 if(req.session.access_log_channel){
                     await user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully.', '');
                 }
                 return res.redirect('/');
             } else {
-                console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.username} (${user.userId}) - Unauthorized Access Attempt.`);
+                console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Unauthorized Access Attempt.`);
                 if(req.session.access_log_channel){
                     await user.sendChannelEmbed(req.session.access_log_channel, 'Unauthorized Access Attempt.', '');
                 }
