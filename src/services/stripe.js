@@ -7,7 +7,7 @@ const config = require('../configs/stripe.json');
 const discords = require('../configs/discords.json').discords;
 
 const MySQLConnector = require('./mysql.js');
-const db = new MySQLConnector(config.db);
+const db = new MySQLConnector(config.stripe.db);
 
 const DiscordClient = require('./discord.js');
 const stripe = require('stripe')(config.live_sk);
@@ -153,7 +153,7 @@ class StripeClient {
                 } else {
                     this.customerId = customer.id;
                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer.id} has been Created.`);
-                    db.query(`UPDATE ${config.db.customer_table} SET stripe_id = ${customer.id} WHERE user_id = ${this.userId} AND guild_id = ${this.guildId}`);
+                    db.query(`UPDATE ${config.stripe.db.customer_table} SET stripe_id = ${customer.id} WHERE user_id = ${this.userId} AND guild_id = ${this.guildId}`);
                     return resolve(customer);
                 }
             });
@@ -173,7 +173,7 @@ class StripeClient {
                         return resolve(false);
                     } else {
                         console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer.id}'s Payment Method has been Updated.`);
-                        db.query(`UPDATE ${config.db.customer_table} SET stripe_id = ${customer.id} WHERE user_id = ${this.userId} AND guild_id = ${this.guildId}`);
+                        db.query(`UPDATE ${config.stripe.db.customer_table} SET stripe_id = ${customer.id} WHERE user_id = ${this.userId} AND guild_id = ${this.guildId}`);
                         return resolve(customer);
                     }
                 }
@@ -201,7 +201,7 @@ class StripeClient {
 
     insertDbRecord() {
         db.query(`
-            INSERT IGNORE INTO ${config.db.customer_table} (
+            INSERT IGNORE INTO ${config.stripe.db.customer_table} (
                     user_id,
                     user_name,
                     email,
@@ -229,7 +229,7 @@ class StripeClient {
     updateDbRecord() {
         db.query(`
             UPDATE
-                ${config.db.customer_table}
+                ${config.stripe.db.customer_table}
             SET
                 plan_id = '${this.planId}',
                 subscription_id = '${this.subscriptionId}',
@@ -246,7 +246,7 @@ class StripeClient {
     deleteDbRecord() {
         db.query(`
             DELETE FROM
-                ${config.db.customer_table}
+                ${config.stripe.db.customer_table}
             WHERE
                 user_id = '${this.userId}'
                     AND
@@ -264,7 +264,7 @@ class StripeClient {
                 SELECT 
                     * 
                 FROM 
-                    ${config.db.customer_table}
+                    ${config.stripe.db.customer_table}
                 WHERE 
                     user_id = '${this.userId}'
                         AND
@@ -290,7 +290,7 @@ class StripeClient {
                 SELECT 
                     * 
                 FROM 
-                    ${config.db.customer_table} 
+                    ${config.stripe.db.customer_table} 
                 WHERE 
                     customer_id = '${this.customerId}'
                         AND
@@ -320,7 +320,7 @@ class StripeClient {
                     SELECT 
                         * 
                     FROM 
-                        ${config.db.customer_table} 
+                        ${config.stripe.db.customer_table} 
                     WHERE 
                         customer_id = '${this.customerId}'
                             AND
@@ -335,7 +335,7 @@ class StripeClient {
     clearDbRecord() {
         db.query(`
             UPDATE
-                ${config.db.customer_table}
+                ${config.stripe.db.customer_table}
             SET
                 customer_id = NULL,
                 plan_id = NULL,
@@ -383,7 +383,7 @@ class StripeClient {
     //                 console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Creating Subscription.', err.message);
     //                 return resolve(object);
     //             } else {
-    //                 db.query('UPDATE ${config.db.customer_table} SET stripe_id = ?, plan_id = ? WHERE user_id = ? AND guild_id = ?', [this.customerId, this.planId, this.userId, this.guildId]);
+    //                 db.query('UPDATE ${config.stripe.db.customer_table} SET stripe_id = ?, plan_id = ? WHERE user_id = ? AND guild_id = ?', [this.customerId, this.planId, this.userId, this.guildId]);
     //                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] A New Stripe Subscription has been Created.`);
     //                 return resolve(subscription);
     //             }
@@ -574,7 +574,7 @@ function customersAudit(customers) {
 function databaseAudit() {
     return new Promise(async (resolve) => {
         console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Database Audit... (2 of 3)`);
-        const records = await db.query(`SELECT * FROM ${config.db.customer_table} WHERE customer_id is NOT NULL AND customer_id != 'Lifetime';`);
+        const records = await db.query(`SELECT * FROM ${config.stripe.db.customer_table} WHERE customer_id is NOT NULL AND customer_id != 'Lifetime';`);
         for (let r = 0, rlen = records.length; r < rlen; r++) {
             const record = records[r];
             setTimeout(async () => {
@@ -591,19 +591,19 @@ function databaseAudit() {
                     if (valid) {
                         if (!record.guild_name || record.guild_name == 'null') {
                             console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating guild_name for ${record.username} (${record.user_id}).`);
-                            db.query(`UPDATE ${config.db.customer_table} SET guild_name = '${discord.name}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
+                            db.query(`UPDATE ${config.stripe.db.customer_table} SET guild_name = '${discord.name}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
                         }
                         if (!record.subscription_id || record.subscription_id == 'null') {
                             console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating subscription_id for ${record.username} (${record.user_id}).`);
-                            db.query(`UPDATE ${config.db.customer_table} SET subscription_id = '${customer.subscriptionId}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
+                            db.query(`UPDATE ${config.stripe.db.customer_table} SET subscription_id = '${customer.subscriptionId}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
                         }
                         if (!record.guild_name || record.guild_name !== discord.name) {
                             console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating guild_name for ${record.username} (${record.user_id}).`);
-                            db.query(`UPDATE ${config.db.customer_table} SET guild_name = '${discord.name}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
+                            db.query(`UPDATE ${config.stripe.db.customer_table} SET guild_name = '${discord.name}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
                         }
                         if (!record.plan_id || record.plan_id == 'null') {
                             console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating plan_id for ${record.username} (${record.user_id}).`);
-                            db.query(`UPDATE ${config.db.customer_table} SET plan_id = '${discord.plan_id}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
+                            db.query(`UPDATE ${config.stripe.db.customer_table} SET plan_id = '${discord.plan_id}' WHERE user_id = '${record.user_id}' AND guild_id = '${discord.id}'`);
                         }
                         user.assigned = await user.assignDonorRole();
                         if (user.assigned) {
@@ -624,7 +624,7 @@ function databaseAudit() {
                 } else {
                     if (!record.customer_id) {
                         console.error(`[MapJS] [${getTime()}] [services/stripe.js] ${record.username} (${record.user_id}) no longer appears to be a member of ${record.guild_name} (${record.guild_id}).`);
-                        //db.query(`DELETE FROM ${config.db.customer_table} WHERE user_id = '${record.user_id}' AND guild_id = '${record.guild_id}'`);
+                        //db.query(`DELETE FROM ${config.stripe.db.customer_table} WHERE user_id = '${record.user_id}' AND guild_id = '${record.guild_id}'`);
                     }
                 }
                 if ((r + 1) === records.length) {
@@ -767,9 +767,8 @@ function stripeAudit(last) {
     });
 }
 
-
 const customer_table = `
-    CREATE TABLE IF NOT EXISTS ${config.db.customer_table}(
+    CREATE TABLE IF NOT EXISTS ${config.stripe.db.customer_table}(
         user_id varchar(40) NOT NULL,
         user_name varchar(40) NOT NULL,
         guild_id varchar(40) NOT NULL,
@@ -789,7 +788,7 @@ db.query(customer_table).catch(err => {
 
 
 const auth_log_table = `
-    CREATE TABLE IF NOT EXISTS ${config.db.auth_log_table}(
+    CREATE TABLE IF NOT EXISTS ${config.stripe.db.auth_log_table}(
         time varchar(40) NOT NULL,
         customer_id varchar(50),
         user_id varchar(40) NOT NULL,
@@ -806,7 +805,7 @@ db.query(auth_log_table).catch(err => {
 
 
 // const stripe_log_table = `
-//     CREATE TABLE IF NOT EXISTS ${config.db.stripe_log_table}(
+//     CREATE TABLE IF NOT EXISTS ${config.stripe.db.stripe_log_table}(
 //         time varchar(40) NOT NULL,
 //         customer_id varchar(50),
 //         user_id varchar(40) NOT NULL,

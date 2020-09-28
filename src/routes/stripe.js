@@ -8,7 +8,7 @@ const bodyParser = require('body-parser');
 
 const defaultData = require('../data/default.js');
 
-const config = require('../configs/stripe.json');
+const config = require('../services/config.js');
 const discords = require('../configs/discords.json').discords;
 
 const StripeClient = require('../services/stripe.js');
@@ -36,7 +36,7 @@ router.get('/subscribe', async (req, res) => {
         const user = new StripeClient({ user_id: req.session.user_id });
         const record = await user.findRecordByUser();
         req.session.map_name = record.map_name;
-        req.session.key = discord.test_pk ? discord.test_pk : config.live_pk;
+        req.session.key = discord.test_pk ? discord.test_pk : config.stripe.live_pk;
         req.session.map_url = req.protocol + '://' + req.get('host');
         req.session.plan_id = discord.plan_id;
         req.session.amt = discord.plan_cost;
