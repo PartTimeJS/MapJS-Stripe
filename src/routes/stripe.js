@@ -12,7 +12,6 @@ const config = require('../services/config.js');
 const guilds = require('../configs/discords.json').discords;
 
 const StripeClient = require('../services/stripe.js');
-const guildClient = require('../services/discord.js');
 const DiscordClient = require('../services/discord.js');
 
 // const catchAsyncErrors = fn => ((req, res, next) => {
