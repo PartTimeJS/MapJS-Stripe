@@ -9,8 +9,8 @@ const DiscordClient = require('../services/discord.js');
 const StripeClient = require('../services/stripe.js');
 //const utils = require('../services/utils.js');
 
+const defaultData = require('../data/default.js');
 const config = require('../services/config.js');
-const stripe = require('../configs/stripe.json');
 const discords = require('../configs/discords.json').discords;
 
 const catchAsyncErrors = fn => ((req, res, next) => {
@@ -68,6 +68,9 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         req.session.user_name = data.username;
         user.setClientInfo(req.session);
         const customer = new StripeClient(req.session);
+        if(config.denylist.includes(req.session.user_id)){
+            return res.render('blocked', defaultData);
+        }
         const perms = await user.getPerms();
         req.session.perms = perms;
         const isMember = user.guildMemberCheck();
@@ -75,7 +78,7 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
             if(req.session.access_log_channel){
                 await user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully.', '');
             }
-            await user.sendDmEmbed(req.session.user_id, '00FF00', `Welcome to ${req.session.map_name}!`, stripe.join_welcome_dm.replace('%map_url%', req.session.map_url));
+            await user.sendDmEmbed(req.session.user_id, '00FF00', `Welcome to ${req.session.map_name}!`, config.join_welcome_content.replace('%map_url%', req.session.map_url));
             return res.redirect(`https://discord.com/channels/${req.session.guild_id}`);
         } else {
             const valid = perms.map !== false;
@@ -85,14 +88,14 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
                 console.log(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Authenticated successfully.`);
                 customer.insertAccessLog('Authenticated Successfully using Discord Oauth.');
                 if(req.session.access_log_channel){
-                    await user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully.', '');
+                    await user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully via Oauth.', '');
                 }
                 return res.redirect('/');
             } else {
                 console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Unauthorized Access Attempt.`);
                 customer.insertAccessLog('Unauthorized Access Attempt using Discord Oauth.');
                 if(req.session.access_log_channel){
-                    await user.sendChannelEmbed(req.session.access_log_channel, 'Unauthorized Access Attempt.', '');
+                    await user.sendChannelEmbed(req.session.access_log_channel, 'Unauthorized Access Attempt via Oauth.', '');
                 }
                 return res.redirect('/subscribe'); //res.redirect('/login');
             }

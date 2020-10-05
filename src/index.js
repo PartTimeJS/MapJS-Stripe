@@ -132,13 +132,17 @@ app.use('/api/stripe', stripeRoutes);
 
 // Login middleware
 app.use(async (req, res, next) => {
+    const unix = moment().unix();
     req.session.ip_address = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     req.session.map_url = 'https://' + req.get('host');
-    if (config.discord.enabled && (req.path.includes('/api/stripe/') || req.path === '/subscribe')) {
+    if (req.path.includes('/api/stripe/') || req.path === '/subscribe') {
         return next();
     }
-    if (config.discord.enabled && (req.path.includes('/api/discord/') || req.path === '/login')) {
+    if (req.path.includes('/api/discord/') || req.path === '/login') {
         return next();
+    }
+    if(config.denylist.includes(req.session.user_id)){
+        return res.render('blocked', defaultData);
     }
     if (req.session.user_id && req.session.logged_in) {
         const user = new DiscordClient(req.session);
@@ -146,34 +150,47 @@ app.use(async (req, res, next) => {
         defaultData.logged_in = true;
         defaultData.username = req.session.user_name;
         if (!req.session.valid) {
-            console.error(`[MapJS] [${getTime()}] [index.js] Invalid User Authenticated, ${user.userName} (${user.userId})`);
-            customer.insertAccessLog('Invalid User Authentication via Cookie Session.');
+            console.error(`[MapJS] [${getTime()}] [index.js] Non-Donor Login Attempt, ${user.userName} (${user.userId})`);
+            customer.insertAccessLog('Non-Donor Login Attempt.');
             res.redirect('/subscribe');
             return;
         }
         if (!(await isValidSession(req.session.user_id))) {
             console.debug(`[MapJS] [${getTime()}] [index.js] Detected multiple sessions for ${user.userName} (${user.userId}). Clearing old ones...`);
-            customer.insertAccessLog('Multiple Sessions Detected and Cleared Older Sessions.');
+            if(req.session.updated < (unix - 300)){
+                req.session.updated = unix;
+                customer.insertAccessLog('Multiple Sessions Detected. Cleared Older Sessions.');
+            }
             if(req.session.access_log_channel){
                 await user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Cleared Excess Sessions.', '');
             }
             await clearOtherSessions(req.session.user_id, req.sessionID);
         }
-        const unix = moment().unix();
-        if(!req.session.perms || !req.session.updated || req.session.updated < (unix - 600)){
+        if(!req.session.perms || !req.session.updated || req.session.updated < (unix - 900)){
             req.session.updated = unix;
             customer.insertAccessLog('Authenticated Successfully via Cookie Session.');
             if(req.session.access_log_channel){
-                await user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully.', '');
+                await user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully via Cookie.', '');
             }
             req.session.perms = await user.getPerms();
+            if(!req.session.perms){
+                customer.insertAccessLog('Invalid Permissions Returned. User Session Destroyed.');
+                req.session.destroy();
+                res.redirect('/login');
+                return;
+            }
         }
         const perms = req.session.perms;
         defaultData.hide_map = !perms.map;
         if (defaultData.hide_map) {
+            if(config.open_map === true){
+                res.redirect('/login');
+                return;
+            }
             // No view map permissions, go to login screen
             console.error('[index.js] Invalid view map permissions for user', req.session.user_id);
-            customer.insertAccessLog('Invalid Permissions Found via Cookie Session.');
+            customer.insertAccessLog('Non-Donor Login Attempt.');
+            await user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Non-Donor Login Attempt.', '');
             res.redirect('/subscribe');
             return;
         }
@@ -208,7 +225,7 @@ app.use('/api', apiRoutes);
 // Start listener
 app.listen(config.port, config.interface, () => console.log(`[MapJS] [index.js] Listening on port ${config.port}...`));
 
-function getTime(type) {
+function getTime (type) {
     switch (type) {
         case 'full':
             return moment().format('dddd, MMMM Do  h:mmA');

@@ -33,16 +33,26 @@ class DiscordClient {
         this.donorRole = user.donor_role;
         this.mapUrl = user.map_url;
         this.email = user.email;
+        return;
     }
 
-    setClientInfo(user) {
-        this.userId = user.user_id;
-        this.userName = user.user_name;
-        this.guildId = user.guild_id;
-        this.guildName = user.guild_name;
-        this.donorRole = user.donor_role;
-        this.mapUrl = user.map_url;
-        this.email = user.email;
+    setClientInfo(userInfo) {
+        this.userId = userInfo.user_id;
+        this.userName = userInfo.user_name;
+        this.guildId = userInfo.guild_id;
+        this.guildName = userInfo.guild_name;
+        this.donorRole = userInfo.donor_role;
+        this.mapUrl = userInfo.map_url;
+        this.email = userInfo.email;
+        return;
+    }
+
+    setGuildInfo(GuildInfo){
+        this.guildId = GuildInfo.id;
+        this.guildName = GuildInfo.name;
+        this.donorRole = GuildInfo.role;
+        this.mapUrl = GuildInfo.domain;
+        return;
     }
 
     async getUser() {
@@ -50,13 +60,22 @@ class DiscordClient {
     }
 
     async getGuilds() {
-        const guilds = await oauth.getUserGuilds(this.accessToken);
-        const guildIds = Array.from(guilds, x => BigInt(x.id).toString());
-        return guildIds;
+        try{
+            const guilds = await oauth.getUserGuilds(this.accessToken);
+            
+            const guildIds = Array.from(guilds, x => BigInt(x.id).toString());
+            return guildIds;
+        } catch (e){
+            return false;
+        }
+        
     }
 
-    async getUserRoles() {
+    async getUserRoles(guild_id) {
         try {
+            if(!guild_id){
+                guild_id = this.guildId;
+            }
             const members = await client.guilds.cache
                 .get(this.guildId)
                 .members
@@ -68,6 +87,7 @@ class DiscordClient {
             return roles;
         } catch (e) {
             console.error('Failed to get roles in guild', this.guildId, 'for user', this.userId);
+            console.error(e);
         }
         return [];
     }
@@ -93,7 +113,10 @@ class DiscordClient {
             devices: false
         };
         const guilds = await this.getGuilds();
-        if (config.discord.allowedUsers.includes(this.userId)) {
+        if(!guilds){
+            return false;
+        }
+        if (config.open_map === true || config.discord.allowedUsers.includes(this.userId)) {
             Object.keys(perms).forEach((key) => perms[key] = true);
             return perms;
         }
@@ -228,6 +251,9 @@ class DiscordClient {
 
 
     checkIfMember(guild_id) {
+        if(!guild_id){
+            guild_id = this.guildId;
+        }
         return new Promise(async (resolve) => {
             if(guild_id){
                 let members = await this.fetchGuildMembers(guild_id);
@@ -294,22 +320,26 @@ class DiscordClient {
 
 
     async sendChannelEmbed(channel_id, color, title, body) {
-        const user = await client.users.fetch(this.userId.toString());
-        const channel = await client.channels.cache.get(channel_id.toString());
-        const embed = new Discord.MessageEmbed().setColor(color)
-            .setAuthor(user.username + ` (${user.id})`, user.displayAvatarURL())
-            .setTitle(title)
-            .setFooter(getTime('full'));
-        if(body){
-            embed.setDescription(body);
-        }
-        channel.send(embed).catch(error => {
-            if (error) {
-                console.error(`[MapJS] [${getTime()}] [services/discord.js]`, error);
-            } else {
-                return;
+        if(channel_id){
+            const user = await client.users.fetch(this.userId.toString());
+            const channel = await client.channels.cache.get(channel_id.toString());
+            if(channel){
+                const embed = new Discord.MessageEmbed().setColor(color)
+                    .setAuthor(user.username + ` (${user.id})`, user.displayAvatarURL())
+                    .setTitle(title)
+                    .setFooter(getTime('full'));
+                if(body){
+                    embed.setDescription(body);
+                }
+                channel.send(embed).catch(error => {
+                    if (error) {
+                        console.error(`[MapJS] [${getTime()}] [services/discord.js]`, error);
+                    } else {
+                        return;
+                    }
+                });
             }
-        });
+        }
     }
 
 
@@ -326,11 +356,11 @@ class DiscordClient {
             if (error) {
                 console.error(`[MapJS] [${getTime()}] [services/discord.js]`, error);
             } else {
+                console.log(`[MapJS] [${getTime()}] [services/discord.js] Sent '${title}' DM to ${user.username} (${user.id})`);
                 return;
             }
         });
     }
-
 
     async sendMessage(channelId, message) {
         if (!channelId) {
@@ -345,7 +375,6 @@ class DiscordClient {
     }
 }
 
-
 function getTime (type) {
     switch (type) {
         case 'full':
@@ -357,6 +386,10 @@ function getTime (type) {
         default:
             return moment().format('hh:mmA');
     }
+}
+
+if(config.open_map === true){
+    console.error(`[MapJS] [${getTime()}] [services/discord.js] WARNING: Open Map is set to 'true'.`);
 }
 
 
