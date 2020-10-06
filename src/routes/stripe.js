@@ -33,9 +33,11 @@ router.get('/subscribe', async (req, res) => {
         guild = guilds[0];
     }
     if(guild){
+        if(!req.session.user_id){
+            return res.redirect('/login');
+        }
         const customer = new StripeClient(req.session);
         const record = await customer.fetchRecordByUser();
-
         req.session.map_name = guild.name;
         req.session.key = guild.test_pk ? guild.test_pk : config.stripe.live_pk;
         req.session.map_url = `https://${req.get('host')}`;
@@ -44,30 +46,113 @@ router.get('/subscribe', async (req, res) => {
         req.session.amt1 = guild.recurring_cost;
         req.session.amt2 = guild.onetime_cost;
         req.session.donor_role = guild.role;
-
-        if(!req.session.user_id){
-            return res.redirect('/login');
-        }
-
-        const data =  Object.assign({}, defaultData, req.session);
-
         if(record){
-            req.session.customer_id = record.customer_id ? record.customer_id : false;
-            req.session.subscription_id = record.subscription_id ? record.subscription_id : false;
             customer.setClientInfo(record);
             if(customer.customerID && customer.subscriptionID){
-                req.session.session_id = await customer.createSession();
-                if(req.session.session_id.error){
-                    res.render('generalError.html', data);
-                } else {
-                    res.redirect('/account');
-                }
+                res.redirect('/account');
+                return;
             } else {
+                const data =  Object.assign({}, defaultData, req.session);
                 res.render('subscribe', data);
+                return;
             }
         } else {
             customer.insertDbRecord();
             res.redirect('/subscribe');
+            return;
+        }
+    } else {
+        console.error(`[MapJS] [routes/stripe.js] No matching guild for https://${req.get('host')}`);
+        res.redirect('/guildError');
+        return;
+    }
+});
+
+
+router.get('/account', async (req, res) => {
+    let guild = false;
+    if(guilds.length > 1){
+        for(let d = 0, dlen = guilds.length; d < dlen; d++){
+            if(`https://${req.get('host')}`.includes(guilds[d].domain)){
+                guild = guilds[d]; break;
+            }
+        }
+    } else { 
+        guild = guilds[0];
+    }
+    if(guild){
+        if(!req.session.user_id){
+            return res.redirect('/login');
+        }
+        const customer = new StripeClient(req.session);
+        const record = await customer.fetchRecordByUser();
+        req.session.map_name = guild.name;
+        req.session.key = guild.test_pk ? guild.test_pk : config.stripe.live_pk;
+        req.session.map_url = `https://${req.get('host')}`;
+        req.session.recurring_id = guild.recurring_id;
+        req.session.onetime_id = guild.onetime_id;
+        req.session.amt1 = guild.recurring_cost;
+        req.session.amt2 = guild.onetime_cost;
+        req.session.donor_role = guild.role;
+        if(record){
+            const records = await customer.fetchAccountRecords();
+            req.session.subscriptions = [];
+            for(let r = 0, rlen = records.length; r < rlen; r++){
+                let user_record = {};
+                user_record.subscription = guild.name;
+                if(records[r].customer_id == 'Lifetime'){
+                    user_record.created = false;
+                    user_record.next_payment = false;
+                    user_record.renewable = true;
+                    user_record.end_date = false;
+                    user_record.cancellable = false;
+                    user_record.update_payment = false;
+                    req.session.subscriptions.push(user_record);
+                } else if(Number.isInteger(parseInt(record.subscription_id))){
+                    user_record.created = false;
+                    user_record.next_payment = false;
+                    user_record.renewable = true;
+                    user_record.end_date = moment.unix(parseInt(record.subscription_id)).format('dddd, MMMM Do h:mmA');
+                    user_record.cancellable = false;
+                    user_record.update_payment = false;
+                    req.session.subscriptions.push(user_record);
+                } else {
+                    customer.setClientInfo(records[r]);
+                    let cus_valid = await customer.validateCustomer();
+                    if(cus_valid){
+                        let sub_valid = await customer.validateSubscription();
+                        if(sub_valid){
+                            user_record.created = moment.unix(customer.customerObject.subscriptions.data[0].created).format('dddd, MMMM Do h:mmA');
+                            user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do h:mmA');
+                            user_record.renewable = false;
+                            user_record.end_date = false;
+                            user_record.cancellable = true;
+                            user_record.update_payment = true;
+                            req.session.session_id = await customer.createSession();
+                            req.session.subscriptions.push(user_record);
+                        } else {    
+                            if(customer.customerObject.subscriptions.data[0].status == 'past_due'){
+                                user_record.created = moment.unix(customer.customerObject.subscriptions.data[0].created).format('dddd, MMMM Do h:mmA');
+                                user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do h:mmA');
+                                user_record.renewable = false;
+                                user_record.end_Date = false;
+                                user_record.cancellable = false;
+                                user_record.update_payment = true;
+                                req.session.session_id = await customer.createSession();
+                                req.session.subscriptions.push(user_record);
+                            }
+                        }
+                    }
+                }
+                if((r + 1) === records.length){
+                    const data =  Object.assign({}, defaultData, req.session);
+                    res.render('account', data);
+                    return;
+                }
+            }
+        } else {
+            customer.insertDbRecord();
+            res.redirect('/account');
         }
     } else {
         console.error(`[MapJS] [routes/stripe.js] No matching guild for https://${req.get('host')}`);
@@ -75,11 +160,32 @@ router.get('/subscribe', async (req, res) => {
     }
 });
 
-
-router.get('/account', (req, res) => {
-    res.render('account', defaultData);
+router.get('/session', async (req, res) => {
+    const customer = new StripeClient(req.session);
+    const record = await customer.fetchRecordByUser();
+    if(!req.session.user_id){
+        return res.redirect('/login');
+    }
+    const data =  Object.assign({}, defaultData, req.session);
+    if(record){
+        req.session.customer_id = record.customer_id ? record.customer_id : false;
+        req.session.subscription_id = record.subscription_id ? record.subscription_id : false;
+        customer.setClientInfo(record);
+        if(customer.customerID && customer.subscriptionID){
+            req.session.session_id = await customer.createSession();
+            if(req.session.session_id.error){
+                res.render('error', data);
+            } else {
+                res.render('update');
+            }
+        } else {
+            res.render('subscribe', data);
+        }
+    } else {
+        customer.insertDbRecord();
+        res.redirect('/subscribe');
+    }
 });
-
 
 router.get('/error', (req, res) => {
     res.render('error', defaultData);

@@ -2,7 +2,7 @@
 'user strict';
 
 const moment = require('moment');
-const config = require('../configs/stripe.json');
+const config = require('./config.js');
 const guilds = require('../configs/discords.json').discords;
 
 const MySQLConnector = require('./mysql.js');
@@ -300,6 +300,27 @@ class StripeClient {
         console.log(`[MapJS] [${getTime()}] [services/stripe.js] DB Record for ${this.userName} (${this.userId}) for guild_id ${this.guildId} has been Deleted.`);
     }
 
+    fetchAccountRecords() {
+        return new Promise(async (resolve) => {
+            let query = `
+                SELECT 
+                    customer_id
+                FROM 
+                    ${config.stripe.db.customer_table}
+                WHERE
+                    user_id = '${this.userId}'
+                        AND
+                    customer_id is NOT NULL;
+            `;
+            const data = await db.query(query);
+            if (data) {
+                return resolve(data);
+            } else {
+                return resolve(false);
+            }
+        });
+    }
+
     fetchRecordByUser() {
         return new Promise(async (resolve) => {
             let query = `
@@ -431,6 +452,7 @@ class StripeClient {
                 customer = this.customerObject;
             } else {
                 customer = await this.fetchCustomer();
+                this.customerObject = customer;
             }
             switch(true){
                 case !customer.subscriptions:

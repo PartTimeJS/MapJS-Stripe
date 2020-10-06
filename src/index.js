@@ -141,9 +141,9 @@ app.use(async (req, res, next) => {
     if (req.path.includes('/api/discord/') || req.path === '/login') {
         return next();
     }
-    if(config.denylist.includes(req.session.user_id)){
-        return res.render('blocked', defaultData);
-    }
+    // if(config.denylist.includes(req.session.user_id)){
+    //     return res.render('blocked', defaultData);
+    // }
     if (req.session.user_id && req.session.logged_in) {
         const user = new DiscordClient(req.session);
         const customer = new StripeClient(req.session);

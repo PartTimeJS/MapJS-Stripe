@@ -197,7 +197,7 @@ class DiscordClient {
                 return true;
             } else {
                 console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) is not a Member of ${this.guildName}.`);
-                //this.joinGuild();
+                this.joinGuild();
                 return false;
             }
         } else {
