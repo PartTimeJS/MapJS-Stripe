@@ -62,15 +62,16 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         const user = new DiscordClient({ access_token: response.data.access_token });
         const data = await user.getUser();
         req.session.access_token = response.data.access_token;
+        req.session.refresh_token = response.data.refresh_token;
         req.session.logged_in = true;
         req.session.user_id = data.id;
         req.session.email = data.email;
         req.session.user_name = data.username;
-        user.setClientInfo(req.session);
-        const customer = new StripeClient(req.session);
         if(config.denylist.includes(req.session.user_id)){
             return res.render('blocked', defaultData);
         }
+        user.setClientInfo(req.session);
+        const customer = new StripeClient(req.session);
         const perms = await user.getPerms();
         req.session.perms = perms;
         const isMember = await user.guildMemberCheck();
