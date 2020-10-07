@@ -178,32 +178,36 @@ class DiscordClient {
 
 
     joinGuild() {
-        client.users.fetch(this.userId).then((user) => {
-            let options = {
-                'accessToken': this.accessToken
-            };
-            client.guilds.cache.get(this.guildId).addMember(user, options);
-            console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) joined to ${this.guildName}.`);
-            return true;
+        return new Promise(async (resolve) => {
+            client.users.fetch(this.userId).then((user) => {
+                let options = {
+                    'accessToken': this.accessToken
+                };
+                client.guilds.cache.get(this.guildId).addMember(user, options);
+                console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) added as a Member to ${this.guildName} (${this.guildId}).`);
+                return resolve(true);
+            });
         });
     }
 
 
     async guildMemberCheck() {
-        const members = await this.fetchGuildMembers(this.guildId);
-        if (members) {
-            const member = members.get(this.userId);
-            if (member){
-                return true;
+        return new Promise(async (resolve) => {
+            const members = await this.fetchGuildMembers(this.guildId);
+            if (members) {
+                const member = members.get(this.userId);
+                if (member){
+                    return resolve(true);
+                } else {
+                    console.log(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) is not a Member of ${this.guildName} (${this.guildId}).`);
+                    await this.joinGuild();
+                    return resolve(false);
+                }
             } else {
-                console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) is not a Member of ${this.guildName}.`);
-                this.joinGuild();
-                return false;
+                console.error(`[MapJS] [${getTime()}] [services/discord.js] No members found for ${this.guildName} (${this.guildId}).`);
+                return resolve(true);
             }
-        } else {
-            console.error(`[MapJS] [${getTime()}] [services/discord.js] No members found for ${this.guildName} (${this.guildId}).`);
-            return true;
-        }
+        });
     }
 
 

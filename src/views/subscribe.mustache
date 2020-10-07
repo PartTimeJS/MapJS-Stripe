@@ -119,6 +119,11 @@
         text-align: center;
     }
 
+    .product-card .right-column .joinDiscord {
+        font-size: 24pt;
+        font-weight: bold;
+    }
+
     .product-card .right-column .mapname {
         font-size: 24pt;
         font-weight: bold;
@@ -313,6 +318,12 @@
             </div>
 
             <div class='right-column'>
+
+                <div class = "joinDiscord">
+                    <form action="https://discord.com/channels/{{guild_id}}">
+                        <img src='/img/joinDiscordButton.png' alt='Join Discord'>
+                    </form>
+                </div>
 
                 <div class='mapname'>
                     {{map_name}}

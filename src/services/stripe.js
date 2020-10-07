@@ -11,7 +11,6 @@ const db = new MySQLConnector(config.stripe.db);
 const DiscordClient = require('./discord.js');
 
 const stripe = require('stripe')(config.stripe.live_sk);
-//const stripe = require('stripe')('sk_test_51BFqArHIrnCEspBZIahCA8TcdZKHOGD3YUd1qWbMGcoyLkvPo09sf2kNT9irUWlnGO6QiHgqSmqJ7d5OOTAsa2A400OldQIPgt');
 
 class StripeClient {
 
@@ -151,26 +150,6 @@ class StripeClient {
         }
     }
 
-    updateCustomerPayment(user_id, customer, token) {
-        return new Promise((resolve) => {
-            stripe.customers.update(
-                customer.id, {
-                    source: token
-                },
-                function (err, customer) {
-                    if (err) {
-                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Updating Customer.`, err.message);
-                        return resolve(false);
-                    } else {
-                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer.id}'s Payment Method has been Updated.`);
-                        db.query(`UPDATE ${config.stripe.db.customer_table} SET stripe_id = ${customer.id} WHERE user_id = ${this.userId} AND guild_id = ${this.guildId}`);
-                        return resolve(customer);
-                    }
-                }
-            );
-        });
-    }
-
     fetchCustomer() {
         return new Promise((resolve) => {
             let customerObject;
@@ -189,7 +168,6 @@ class StripeClient {
             this.customerObject = customerObject;
         });
     }
-
 
     insertDbRecord() {
         db.query(`
@@ -216,14 +194,11 @@ class StripeClient {
             ON DUPLICATE KEY UPDATE
                 customer_id = '${this.customerId}',
                 subscription_id = '${this.subscriptionId}';
-
-            ;
         `).catch(err => {
             console.error('Failed to execute query in insertDbRecord', '\r\n:Error:', err);
         });
         console.log(`[MapJS] [${getTime()}] [services/stripe.js] Customer DB Record Inserted for ${this.userName} (${this.userId}).`);
     }
-
 
     insertAccessLog(log) {
         db.query(`
@@ -408,6 +383,23 @@ class StripeClient {
             stripe.subscriptions.update(
                 this.subscriptionId, {
                     cancel_at_period_end: true
+                },
+                function (err, confirmation) {
+                    if (err) {
+                        return resolve(false);
+                    } else {
+                        return resolve(confirmation);
+                    }
+                }
+            );
+        });
+    }
+
+    reactivateSubscription() {
+        return new Promise((resolve) => {
+            stripe.subscriptions.update(
+                this.subscriptionId, {
+                    cancel_at_period_end: false
                 },
                 function (err, confirmation) {
                     if (err) {

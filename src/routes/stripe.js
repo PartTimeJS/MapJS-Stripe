@@ -33,7 +33,8 @@ router.get('/subscribe', async (req, res) => {
         guild = guilds[0];
     }
     if(guild){
-        if(!req.session.user_id){
+        if(!req.session.user_id || !req.session.guild_id){
+            req.session.destroy();
             return res.redirect('/login');
         }
         const customer = new StripeClient(req.session);
@@ -103,7 +104,7 @@ router.get('/account', async (req, res) => {
                 if(records[r].customer_id == 'Lifetime'){
                     user_record.created = false;
                     user_record.next_payment = false;
-                    user_record.renewable = true;
+                    user_record.renewable = false;
                     user_record.end_date = false;
                     user_record.cancellable = false;
                     user_record.update_payment = false;
@@ -123,19 +124,26 @@ router.get('/account', async (req, res) => {
                         let sub_valid = await customer.validateSubscription();
                         if(sub_valid){
                             user_record.created = moment.unix(customer.customerObject.subscriptions.data[0].created).format('dddd, MMMM Do h:mmA');
-                            user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do h:mmA');
                             user_record.renewable = false;
-                            user_record.end_date = false;
+                            if(customer.customerObject.subscriptions.data[0].cancel_at_period_end){
+                                user_record.end_date = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do h:mmA');
+                                user_record.next_payment = 'Cancelled';
+                                user_record.reactivatable = true;
+                            } else {
+                                user_record.end_date = false;
+                                user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do h:mmA');
+                                user_record.reactivatable = false;
+                            }
                             user_record.cancellable = true;
                             user_record.update_payment = true;
-                            req.session.session_id = await customer.createSession();
+                            user_record.session_id = await customer.createSession();
                             req.session.subscriptions.push(user_record);
-                        } else {    
+                        } else {
                             if(customer.customerObject.subscriptions.data[0].status == 'past_due'){
                                 user_record.created = moment.unix(customer.customerObject.subscriptions.data[0].created).format('dddd, MMMM Do h:mmA');
                                 user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do h:mmA');
                                 user_record.renewable = false;
-                                user_record.end_Date = false;
+                                user_record.end_date = 'PAST DUE';
                                 user_record.cancellable = false;
                                 user_record.update_payment = true;
                                 req.session.session_id = await customer.createSession();
@@ -160,33 +168,6 @@ router.get('/account', async (req, res) => {
     }
 });
 
-router.get('/session', async (req, res) => {
-    const customer = new StripeClient(req.session);
-    const record = await customer.fetchRecordByUser();
-    if(!req.session.user_id){
-        return res.redirect('/login');
-    }
-    const data =  Object.assign({}, defaultData, req.session);
-    if(record){
-        req.session.customer_id = record.customer_id ? record.customer_id : false;
-        req.session.subscription_id = record.subscription_id ? record.subscription_id : false;
-        customer.setClientInfo(record);
-        if(customer.customerID && customer.subscriptionID){
-            req.session.session_id = await customer.createSession();
-            if(req.session.session_id.error){
-                res.render('error', data);
-            } else {
-                res.render('update');
-            }
-        } else {
-            res.render('subscribe', data);
-        }
-    } else {
-        customer.insertDbRecord();
-        res.redirect('/subscribe');
-    }
-});
-
 router.get('/error', (req, res) => {
     res.render('error', defaultData);
 });
@@ -195,25 +176,32 @@ router.get('/success', async function(req, res) {
     const customer = new StripeClient(req.query);
     const guild = await customer.identifyGuild();
     const session = await customer.retrieveSession();
-    const record = await customer.fetchRecordByCustomer();
-    const user = new DiscordClient(record);
     customer.customerId = session.customer;
-    console.log('/success - session', req.session);
-    customer.updateCustomerName(session.customer, session.client_reference_id);
-    if(!session.subscription || session.subscription === null){
-        customer.subscriptionId = moment().unix() + 2592000;
-    } else {
-        customer.subscriptionId = session.subscription;
+    if(session){
+        const record = await customer.fetchRecordByCustomer();
+        const user = new DiscordClient(record);
+        console.log('/success - session', req.session);
+        customer.updateCustomerName(session.customer, session.client_reference_id);
+        if(!session.subscription || session.subscription === null){
+            if(Number.isInteger(parseInt(record.subscription_id))){
+                customer.subscriptionId = moment.unix(record.subscription_id).add(1, 'M').unix();
+                console.log('added a month to a subscription','previous:',record.subscription_id,'after:',customer.subscriptionId);
+            } else {
+                customer.subscriptionId = moment().add(1, 'M').unix();
+            }
+        } else {
+            customer.subscriptionId = session.subscription;
+        }
+        console.log('/success - StripeClient', customer);
+        customer.insertDbRecord();
+        console.log('/success - DiscordClient', user);
+        user.assignDonorRole();
+        if(user.assigned){
+            user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
+        } 
+        user.sendMessage(guild.welcome_channel, config.donor_welcome_content.replace('%usertag%', '<@' + req.query.user_id + '>'));
+        user.sendChannelEmbed(guild.stripe_log_channel, 'New Subscription Created! 📋', '');
     }
-    console.log('/success - StripeClient', customer);
-    customer.insertDbRecord();
-    console.log('/success - DiscordClient', user);
-    user.assignDonorRole();
-    if(user.assigned){
-        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
-    } 
-    user.sendMessage(guild.welcome_channel, config.donor_welcome_content.replace('%usertag%', '<@' + req.query.user_id + '>'));
-    user.sendChannelEmbed(guild.stripe_log_channel, 'New Subscription Created! 📋', '');
     res.redirect('/');
     return;
 });
@@ -223,9 +211,9 @@ router.get('/updatesuccess', async function(req, res) {
     const customer = new StripeClient(req.query);
     const guild = await customer.identifyGuild();
     const session = await customer.retrieveSession();
+    customer.customerId = session.customer;
     const record = await customer.fetchRecordByCustomer();
     const user = new DiscordClient(record);
-    customer.customerId = session.customer;
     const intent = await customer.retrieveSetupIntent(session.setup_intent);
     await customer.updatePaymentMethod(intent.customer, record.plan_id, intent.payment_method);
     user.assigned = await user.assignDonorRole();
@@ -244,9 +232,7 @@ router.post('/webhook', bodyParser.raw({
     try{
         setTimeout(async () => {
             webhook = webhook.body;
-            if(!webhook.data.object.customer_name){
-                console.log(webhook);
-            }
+            console.log(webhook);
             const customer = new StripeClient({ customer_id: webhook.data.object.customer });
             const record = await customer.fetchRecordByCustomer();
             const user = new DiscordClient(record);

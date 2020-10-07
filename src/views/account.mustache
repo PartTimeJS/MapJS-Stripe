@@ -355,7 +355,7 @@
 
         <table class="accountTable">
             <thead>
-                <tr><th>Subscription:</th><th>Created:</th><th>Next Payment:</th><th>Cancel:</th></tr>
+                <tr><th>Subscription:</th><th>Created:</th><th>Next Payment:</th><th>End Date:</th><th>Renew/Update:</th><th>Cancel:</th></tr>
             </thead>
             <tbody>
 
@@ -364,51 +364,65 @@
     </div>
 
     <script>
-        var array = ['cus_4354154235432', ]
-
+        var subscriptions = '{{subscriptions}}';
+        console.log(subscriptions);
+        //console.log(JSON.parse(subscriptions));
         var bodyString = '';
-        $.each(country, function(index, ctry) {
-            bodyString += ('<tr><td>'+ctry+'</td><td>'+capital[index]+'</td></tr>');
+        subscriptions.forEach((sub,index) => {
+            let updatebutton, cancelbutton;
+            if(sub.reactivatable){
+                updatebutton = '<button class="updateButton" onclick="reactivate('+sub.subscription_id+')" id="reactivate">Re-Activate!</button>';
+            } else if(sub.renewable){
+                updatebutton = '<button class="updateButton" onclick="charge('+sub.plan_id+','+sub.customer_id+')" id="renew">Renew!</button>';
+            } else if(sub.update_payment){
+                updatebutton = '<button class="updateButton" onclick="update('+sub.session_id+')" id="update">Update Card!</button>';
+            } else {
+                updatebutton = '<button class="cancelButton">N/A</button>';
+            }
+            if(!sub.end_date){
+                sub.end_date = 'N/A';
+            }
+            if(sub.cancellable){
+                cancelbutton = '<button class="cancelButton" onclick="cancel('+sub.customer_id+')" id="cancel">Cancel</button>';
+            } else {
+                cancelbutton = '<button class="cancelButton">N/A</button>';
+            }
+            bodyString += '<tr>';
+            bodyString += '<td>'+sub.subscription+'</td><td>'+sub.created+'</td><td>'+sub.next_payment+'</td>';
+            bodyString += '<td>'+sub.end_date+'</td><td>'+updatebutton+'</td><td>'+cancelbutton+'</td>';
+            bodyString += '</tr>';
         });
-
-        var formData = JSON.stringify($("#myForm").serializeArray());
-        $.ajax({
-            type: "POST",
-            url: "serverUrl",
-            data: formData,
-            success: function(){},
-            dataType: "json",
-            contentType : "application/json"
-        });
-
-        var updatButtons = document.getElementsByClassName("updateButton");
-        for(var i = 0; i < updateButtons.length; i += 1){
-            updateButtons[i].addEventListener('click', function (i) {
-                stripe.redirectToCheckout({
-                    sessionId: '{{session_id}}'
-                }).then(handleResult);
-            });
-        }
-
-        var cancelButtons = document.getElementsByClassName("cancelButton");
-        for(var i = 0; i < cancelButtons.length; i += 1){
-            cancelButtons[i].addEventListener('click', function (i) {
-                var formData = JSON.stringify($("#myForm").serializeArray());
-                $.ajax({
-                    type: "POST",
-                    url: "serverUrl",
-                    data: formData,
-                    success: function(){},
-                    dataType: "json",
-                    contentType : "application/json"
-                });
-                setTimeout(() => {
-                    window.location.href = '/account';
-                }, 3000);
-            });
-        }
-
         $('.accountTable tbody').html(bodyString);
+
+        update(session_id){
+            stripe.redirectToCheckout({
+                sessionId: session_id
+            }).then(handleResult);
+        }
+
+        cancel(customer_id) {
+                window.location.href = `/api/stripe/cancel?customer_id=${customer_id}`;
+            });
+        }
+
+        reactivate(customer_id) {
+                window.location.href = `/api/stripe/reactivate?customer_id=${customer_id}`;
+            });
+        }
+
+        charge(plan_id, customer_id){
+            stripe.redirectToCheckout({
+              mode: 'payment',
+              lineItems: [{
+                price: plan_id,
+                quantity: 1,
+              }],
+              successUrl: DOMAIN + `/api/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+              cancelUrl: DOMAIN,
+              customer: {{customer_id}},
+              clientReferenceId: refId,
+            }).then(handleResult);
+        }
     </script>
 </body>
 
