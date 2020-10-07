@@ -206,9 +206,9 @@ app.use(async (req, res, next) => {
         defaultData.hide_cells = !perms.s2cells;
         defaultData.hide_submission_cells = !perms.submissionCells;
         defaultData.hide_nests = !perms.nests;
+        defaultData.hide_portals = !perms.portals;
         defaultData.hide_scan_areas = !perms.scanAreas;
         defaultData.hide_weather = !perms.weather;
-        defaultData.hide_portals = !perms.portals;
         defaultData.hide_devices = !perms.devices;
         return next();
     }
