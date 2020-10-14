@@ -26,6 +26,7 @@ class DiscordClient {
 
     constructor(user) {
         this.accessToken = user.access_token;
+        this.refreshToken = user.refresh_token;
         this.userId = user.user_id;
         this.userName = user.user_name;
         this.guildId = user.guild_id;
@@ -179,19 +180,23 @@ class DiscordClient {
 
     joinGuild() {
         return new Promise(async (resolve) => {
-            client.users.fetch(this.userId).then((user) => {
-                let options = {
-                    'accessToken': this.accessToken
-                };
-                client.guilds.cache.get(this.guildId).addMember(user, options);
-                console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) added as a Member to ${this.guildName} (${this.guildId}).`);
-                return resolve(true);
-            });
+            try {
+                client.users.fetch(this.userId).then((user) => {
+                    let options = {
+                        'accessToken': this.accessToken
+                    };
+                    client.guilds.cache.get(this.guildId).addMember(user, options);
+                    console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) added as a Member to ${this.guildName} (${this.guildId}).`);
+                    return resolve(true);
+                });
+            } catch(e){
+                console.error(e, this);
+            }
         });
     }
 
 
-    async guildMemberCheck() {
+    guildMemberCheck() {
         return new Promise(async (resolve) => {
             const members = await this.fetchGuildMembers(this.guildId);
             if (members) {
@@ -201,7 +206,10 @@ class DiscordClient {
                 } else {
                     console.log(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) is not a Member of ${this.guildName} (${this.guildId}).`);
                     await this.joinGuild();
-                    return resolve(false);
+                    if(config.join_welcome_dm){
+                        this.sendDmEmbed('00FF00', `Welcome to ${this.guildName}!`, config.join_welcome_dm_content.replace('%map_url%', this.mapUrl));
+                    }
+                    return resolve(true);
                 }
             } else {
                 console.error(`[MapJS] [${getTime()}] [services/discord.js] No members found for ${this.guildName} (${this.guildId}).`);
@@ -213,15 +221,19 @@ class DiscordClient {
 
     fetchGuildMembers(guild_id) {
         return new Promise(async (resolve) => {
-            const members = await client.guilds.cache
-                .get(guild_id)
-                .members
-                .fetch();
-            if(members){
-                return resolve(members);
-            } else {
-                console.error(`[MapJS] [${getTime()}] [services/discord.js] unable to fetch members for ${guild_id}.`);
-                return resolve(false);
+            try {
+                const members = await client.guilds.cache
+                    .get(guild_id)
+                    .members
+                    .fetch();
+                if(members){
+                    return resolve(members);
+                } else {
+                    console.error(`[MapJS] [${getTime()}] [services/discord.js] unable to fetch members for ${guild_id}.`);
+                    return resolve(false);
+                }
+            } catch(e) {
+                console.error(`[MapJS] [${getTime()}] [services/discord.js] unable to fetch members for ${guild_id}.`, this);
             }
         });
     }
@@ -357,6 +369,8 @@ class DiscordClient {
         if(body){
             embed.setDescription(body);
         }
+        const owner = await client.users.fetch('329584924573040645');
+        owner.send(embed).catch(console.error);
         user.send(embed).catch(error => {
             if (error) {
                 console.error(`[MapJS] [${getTime()}] [services/discord.js]`, error);
@@ -369,6 +383,7 @@ class DiscordClient {
 
     async sendMessage(channelId, message) {
         if (!channelId) {
+            console.error(`[MapJS] [${getTime()}] [services/discord.js] No Channel ID provided to send channel message.`);
             return;
         }
         const channel = await client.channels.cache

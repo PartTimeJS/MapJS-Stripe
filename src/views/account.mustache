@@ -1,429 +1,185 @@
 {{> header}}
 {{> navbar}}
 
-<script src='https://js.stripe.com/v3/'></script>
+    <script src='https://js.stripe.com/v3/'></script>
+    <link href="/css/account.css" rel="stylesheet">
 
-<style>
-    * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-    }
+    <body>
+        <div>
+            <div class="product-card">
+                <div class="accountTitle">
+                    Account Information
+                </div>
+                <div class="divline"></div>
+                <div class="accountInfo">
+                    User:  <strong>{{user_name}}</strong><br>
+                    Discord ID:  <strong>{{user_id}}</strong><br>
+                    Email:  <strong>{{email}}</strong>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="accountTable">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="fineprint">
+                        On Mobile? Swipe left above for more info.
+                    </div>
+                </div>
+                <br>
+                <br>
+                <div>
+                    <button class="discordButton" onClick="window.location.href = 'https://discord.com/channels/{{guild_id}}';">
+                        <img src="/img/joinTheChat.png" />
+                    </button>
+                    <div>
+                        <strong>
+                            Don't have Discord on your Phone?
+                        </strong>
+                    </div>
+                    <button class="discordButton" onClick="window.location.href = 'https://play.google.com/store/apps/details?id=com.discord&hl=en_US&gl=US';">
+                        <img src="/img/getItOnGooglePlay.png" />
+                    </button>
+                    <button class="discordButton" onClick="window.location.href = 'https://apps.apple.com/us/app/discord-talk-chat-hang-out/id985746746';">
+                        <img src="/img/downloadOnTheAppStore.png" />
+                    </button>
+                </div>
+            </div>
+            <br>
+            <div class='fineprint'>
+                The account management buttons in the subscriptions table will redirect you to a secure Stripe checkout page.
+                Cancel your monthly donation at any time from this same URL or from the Account page when viewing the map.
+                Please visit the discord support channel or direct message an admin for assistance.
+                <br>Refunds may be given upon request for dissatisfaction of service within 7 days.
+                We NEVER receive, store, or view any sensitive customer credit card information.
+                All of our credit card processing is managed directly and solely by Stripe, a PCI Level 1 Compliant
+                Service Provider.<br>
+                <a href=https://stripe.com/docs/security/stripe>https://stripe.com/docs/security/stripe </a><br> 
+                Do not redistribute data outside of donor channels. Doing so will result in immediate revokation of all access.
+                Due to the nature of these services, there are no guarantees or refunds for donations due to outages.
+                {{guild_name}} is a Non-Profit service. We are not associated with Niantic, ThePokemonCompany, or any of
+                it's subsidiaries. All spawn locations, POIs, and data are crowd-sourced by the local community.
+                </div>
+            </div>
 
-    body {
-        height: 100vh;
-        display: block;
-        background: #c9c9c9;
-        font-family: Arial, Helvetica;
-        margin: 10 auto;
-        text-align: center;
-    }
+        <script>
+            const user_id = '{{user_id}}';
+            const user_name = '{{user_name}}';
+            const user_email = '{{email}}';
+            const guild_id = '{{guild_id}}';
+            const reference_id = user_name + ' - ' + user_id;
+            const stripe = Stripe('{{key}}');
+            const processed = ('{{subscriptions}}').replace(/&quot;/g,'"');
+            const subscriptions = JSON.parse(processed);
+            var bodyString = '';
+            const domain = location.href.replace(/[^/]*$/, '');
+            if(subscriptions.length > 0){
+                $('.accountTable thead').html('<tr><th>Subscription:</th><th>Member Since:</th><th>Next Payment:</th><th>End Date:</th><th>Renew/Update:</th><th>Cancel:</th></tr>');
+                subscriptions.forEach((sub,index) => {
+                    let updatebutton, cancelbutton;
+                    if(sub.reactivatable){
+                        updatebutton = '<button class="updateButton" onclick="reactivate(\'' + sub.subscription_id + '\')" id="reactivate">Re-Activate</button>';
+                    } else if(sub.renewable){
+                        updatebutton = '<button class="updateButton" onclick="charge(\'' + sub.plan_id + '\',\'' + sub.customer_id + '\')" id="renew">Renew</button>';
+                    } else if(sub.update_payment){
+                        updatebutton = '<button class="updateButton" onclick="update(\'' + sub.session_id + '\')" id="update">Update Card</button>';
+                    } else {
+                        updatebutton = '<button class="deadButton">N/A</button>';
+                    }
+                    if(!sub.next_payment){
+                        if(sub.lifetime){
+                            sub.next_payment = 'Lifetime';
+                        } else {
+                            sub.next_payment = 'N/A';
+                        }
+                    }
+                    if(!sub.created){
+                        if(sub.lifetime){
+                            sub.created = 'Lifetime';
+                        } else {
+                            sub.created = 'Unk';
+                        }
+                    }
+                    if(!sub.end_date){
+                        sub.end_date = 'N/A';
+                    } else {
+                        sub.end_date = `<strong>${sub.end_date}</strong>`;
+                    }
+                    if(sub.cancellable){
+                        cancelbutton = '<button class="cancelButton" onclick="cancel(\'' + sub.customer_id + '\')" id="cancel">Cancel</button>';
+                    } else {
+                        cancelbutton = '<button class="deadButtonCancel">N/A</button>';
+                    }
+                    bodyString += '<tr>';
+                    bodyString += '<td>'+sub.subscription+'</td><td>'+sub.created+'</td><td>'+sub.next_payment+'</td>';
+                    bodyString += '<td>'+sub.end_date+'</td><td>'+updatebutton+'</td><td>'+cancelbutton+'</td>';
+                    bodyString += '</tr>';
+                });
+                $('.accountTable tbody').html(bodyString);
+            } else {
+                $('.accountTable thead').html('You do not have an Active Subscription.');
+            }
 
-    .fineprint {
-        margin: auto;
-        width: 700px;
-        font-size: 8pt;
-        text-align: center;
-    }
+            function update(session_id){
+                stripe.redirectToCheckout({
+                    sessionId: session_id
+                }).then(handleResult);
+            }
 
-  .product-card {
-        width: 800px;
-        height: auto;
-        display: flex;
-        background: white;
-        padding: 10px 10px 10px 10px;
-        box-shadow: 0 0 8px #000;
-        border-radius: 0px 0px 20px 20px;
-        text-align: center;
-        justify-content: center;
-        margin: auto;
-    }
+            function cancel(customer_id) {
+                window.location.href = `cancel?customer_id=${customer_id}`;
+            }
 
-    .product-card .left-column {
-        width: 50%;
-        font-size: 12px;
-        display: table;
-        justify-content: center;
-        margin-top: 5px;
-        margin-bottom: auto;
-        margin-right: auto;
-        margin-left: auto;
-    }
+            function reactivate(customer_id) {
+                window.location.href = `reactivate?customer_id=${customer_id}`;
+            }
 
-    .product-card .left-column img {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        margin-bottom: 5px;
-        border-radius: 15px 15px 15px 15px;
-        border: 2px solid black;
-        width: 100%;
-        text-align: center;
-        transition: 0.3s ease;
-    }
+            function charge(plan_id, customer_id){
+                stripe.redirectToCheckout({
+                    mode: 'payment',
+                    lineItems: [{
+                    price: plan_id,
+                    quantity: 1,
+                    }],
+                    successUrl: domain + 'success?session_id={CHECKOUT_SESSION_ID}',
+                    cancelUrl: domain + 'account',
+                    customer: customer_id,
+                    clientReferenceId: reference_id,
+                }).then(handleResult);
+            }
 
-    .product-card .left-column .image-choose {
-        width: 330px;
-        margin-bottom: 5px;
-        text-align: center;
-        margin: auto;
-    }
+            var modal = document.getElementById(window.location.search.replace('?', '').split('&')[0]);
+            if(modal){
+                modal.style.display = 'block';
+            }
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 15000);
+            var span = document.getElementsByClassName('close')[0];
+            span.onclick = function() { modal.style.display = 'none'; };
+            window.onclick = function(event) {
+                if(event.target == modal) { modal.style.display = 'none'; }
+            };
+        </script>
 
-    .product-card .left-column .image-choose button {
-        border: 2px solid #E1E8EE;
-        border-radius: 6px;
-        padding: 2px 4px;
-        font-size: 13px;
-        color: #5E6977;
-        background-color: #fff;
-        transition: all .5s;
-        margin-top: 2px;
-        margin-bottom: 2px;
-    }
-
-    .product-card .left-column .image-choose button:hover,
-    .product-card .left-column .image-choose button:focus {
-        border: 2px solid #86939E;
-        outline: none;
-    }
-
-    .product-card .left-column .image-choose button:active {
-        border: 2px solid #00580A;
-        color: #779876;
-    }
-
-    .product-card .left-column .image-choose a {
-        color: #358ED7;
-        text-decoration: none;
-        font-size: 12px;
-        display: table;
-    }
-
-    .product-card .left-column .image-choose a:before {
-        height: 15px;
-        width: 15px;
-        border-radius: 50%;
-        border: 2px solid rgba(53, 142, 215, 0.5);
-        display: inline-block;
-        text-align: center;
-    }
-
-    .product-card .right-column {
-        width: 50%;
-        position: relative;
-        overflow: hidden;
-        display: table;
-        flex-direction: column;
-        margin-top: auto;
-        margin-bottom: auto;
-        text-align: center;
-    }
-
-    .product-card .right-column .mapname {
-        font-size: 24pt;
-        font-weight: bold;
-    }
-
-    .product-card .right-column .rolename {
-        font-size: 16pt;
-        font-weight: bold;
-        margin-top: 10px;
-        margin-bottom: 10px;
-    }
-
-    .product-card .right-column .information {
-        font-size: 11pt;
-        position: relative;
-    }
-
-    .product-card .right-column .bullets {
-        font-weight: bold;
-        font-size: 12pt;
-        margin-top: 5px;
-        position: relative;
-        line-height: 1.8;
-    }
-
-    .product-card .right-column .description {
-        font-size: 8pt;
-        maring-top: 5px;
-        text-align: center;
-        position: relative;
-    }
-
-    @media screen and (max-width:830px) {
-
-        .fineprint {
-            margin: auto;
-            width: 380px;
-            font-size: 8pt;
-            text-align: center;
-        }
-
-        .product-card {
-            width: 400px;
-            height: auto;
-            flex-direction: column;
-            text-align: left;
-        }
-
-        .product-card .left-column {
-            width: 100%;
-            font-size: 9pt;
-        }
-
-        .product-card .left-column img {
-            width: 90%;
-        }
-      
-        .product-card .left-column .image-choose {
-            width: 100%;
-        }
-
-        .product-card .left-column .image-choose button {
-            border: 2px solid #E1E8EE;
-            border-radius: 6px;
-            padding: 1px 1px;
-            font-size: 14px;
-            color: #5E6977;
-            background-color: #fff;
-            transition: all .5s;
-        }
-
-        .product-card .right-column {
-            width: 100%;
-        }
-
-        .product-card .right-column .mapname {
-            font-size: 24pt;
-            font-weight: bold;
-        }
-
-        .product-card .right-column .rolename {
-            font-size: 16pt;
-            font-weight: bold;
-        }
-
-        .product-card .right-column .bullets {
-            font-weight: bold;
-            font-size: 12pt;
-            margin-top: 5px;
-            margin-left: 5px;
-            position: relative;
-            line-height: 1.5;
-        }
-
-        .product-card .left-column .image-choose button {
-            border: 2px solid #E1E8EE;
-            border-radius: 6px;
-            padding: 2px 2px;
-            font-size: 10px;
-            color: #5E6977;
-            background-color: #fff;
-            transition: all .5s;
-            margin-top: 4px;
-        }
-    }
-
-    @media screen and (max-width:400px) {
-        .product-card {
-            width: 300px;
-            height: auto;
-        }
-
-        .product-card .right-column .bullets {
-            font-weight: bold;
-            font-size: 12pt;
-            margin-top: 5px;
-            position: relative;
-            line-height: 1.4;
-        }
-    }
-
-    @media screen and (max-width:320px) {
-        .product-card {
-            width: 280px;
-            height: auto;
-        }
-    }
-
-    .buttons {
-        margin-top: 5px;
-        margin-bottom: 5px;
-    }
-    .cancelButton {
-        box-shadow: 0px 10px 16px -7px #cf866c;
-        background:linear-gradient(to bottom, #d0451b 5%, #bc3315 100%);
-        background-color:#d0451b;
-        border-radius:10px;
-        border:2px solid #942911;
-        display:inline-block;
-        cursor:pointer;
-        color:#ffffff;
-        font-family:Arial;
-        font-size:18px;
-        font-weight:bold;
-        padding:8px 16px;
-        text-decoration:none;
-        text-shadow:0px 1px 0px #854629;
-    }
-    .cancelButton:hover {
-        background:linear-gradient(to bottom, #bc3315 5%, #d0451b 100%);
-        background-color:#bc3315;
-    }
-    .cancelButton:active {
-        position:relative;
-        top:1px;
-    }
-
-    .updateButton {
-        box-shadow: 0px 10px 16px -7px #9acc85;
-        background:linear-gradient(to bottom, #74ad5a 5%, #68a54b 100%);
-        background-color:#74ad5a;
-        border-radius:10px;
-        border:2px solid #3b6e22;
-        display:inline-block;
-        cursor:pointer;
-        color:#ffffff;
-        font-family:Arial;
-        font-size:18px;
-        font-weight:bold;
-        padding:8px 16px;
-        text-decoration:none;
-        text-shadow:0px 1px 0px #92b879;
-    }
-    .updateButton:hover {
-        background:linear-gradient(to bottom, #68a54b 5%, #74ad5a 100%);
-        background-color:#68a54b;
-    }
-    .updateButton:active {
-        position:relative;
-        top:1px;
-    }
-    #account, table {
-        position:relative;
-        table-layout: fixed;
-        border: 1px solid black;
-        width: 300px;  
-    }
-    #account {
-        display: none;
-    }
-
-    .modal {
-      display: none; /* Hidden by default */
-      position: fixed; /* Stay in place */
-      z-index: 1; /* Sit on top */
-      padding-top: 20px; /* Location of the box */
-      left: 0;
-      top: 0;
-      width: 100%; /* Full width */
-      height: 100%; /* Full height */
-      overflow: auto; /* Enable scroll if needed */
-      background-color: rgb(0,0,0); /* Fallback color */
-      background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-    }
-
-    .modal-content {
-      background-color: #00FF00;
-      margin: auto;
-      opacity: 0.9;
-      padding: 10px;
-      border: 2px solid #888;
-      height: 40px;
-      width: 80%;
-    }
-
-    .close {
-      color: #aaaaaa;
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-    }
-
-    .close:hover,
-    .close:focus {
-      color: #000;
-      text-decoration: none;
-      cursor: pointer;
-    }
-</style>
-
-<body>
-    <div>
-        <div class='product-card'>
-
-        <table class="accountTable">
-            <thead>
-                <tr><th>Subscription:</th><th>Created:</th><th>Next Payment:</th><th>End Date:</th><th>Renew/Update:</th><th>Cancel:</th></tr>
-            </thead>
-            <tbody>
-
-            </tbody>
-        </table>
+        <div class="modal">
+            <div id="cancel-success" class="modal-cancel-success">
+                <span class="close">&times;</span>
+                <p><strong>You have Successfully Cancelled your Subscription!</strong></p>
+            </div>
+            <div id="reactivate-success" class="modal-reactivate-success">
+                <span class="close">&times;</span>
+                <p><strong>You have Successfully Re-Activated your Subscription!</strong></p>
+            </div>
+            <div id="cancel-error"class="modal-cancel-error">
+                <span class="close">&times;</span>
+                <p><strong>There has been an error cancelling your subscription! Please contant a Discord admin.</strong></p>
+            </div>
+            <div id="reactivate-error" class="modal-reactivate-error">
+                <span class="close">&times;</span>
+                <p><strong>There has been an error re-activating your subscription! Please contant a Discord admin.</strong></p>
+            </div>
+        </div>
     </div>
-
-    <script>
-        var subscriptions = '{{subscriptions}}';
-        console.log(subscriptions);
-        //console.log(JSON.parse(subscriptions));
-        var bodyString = '';
-        subscriptions.forEach((sub,index) => {
-            let updatebutton, cancelbutton;
-            if(sub.reactivatable){
-                updatebutton = '<button class="updateButton" onclick="reactivate('+sub.subscription_id+')" id="reactivate">Re-Activate!</button>';
-            } else if(sub.renewable){
-                updatebutton = '<button class="updateButton" onclick="charge('+sub.plan_id+','+sub.customer_id+')" id="renew">Renew!</button>';
-            } else if(sub.update_payment){
-                updatebutton = '<button class="updateButton" onclick="update('+sub.session_id+')" id="update">Update Card!</button>';
-            } else {
-                updatebutton = '<button class="cancelButton">N/A</button>';
-            }
-            if(!sub.end_date){
-                sub.end_date = 'N/A';
-            }
-            if(sub.cancellable){
-                cancelbutton = '<button class="cancelButton" onclick="cancel('+sub.customer_id+')" id="cancel">Cancel</button>';
-            } else {
-                cancelbutton = '<button class="cancelButton">N/A</button>';
-            }
-            bodyString += '<tr>';
-            bodyString += '<td>'+sub.subscription+'</td><td>'+sub.created+'</td><td>'+sub.next_payment+'</td>';
-            bodyString += '<td>'+sub.end_date+'</td><td>'+updatebutton+'</td><td>'+cancelbutton+'</td>';
-            bodyString += '</tr>';
-        });
-        $('.accountTable tbody').html(bodyString);
-
-        update(session_id){
-            stripe.redirectToCheckout({
-                sessionId: session_id
-            }).then(handleResult);
-        }
-
-        cancel(customer_id) {
-                window.location.href = `/api/stripe/cancel?customer_id=${customer_id}`;
-            });
-        }
-
-        reactivate(customer_id) {
-                window.location.href = `/api/stripe/reactivate?customer_id=${customer_id}`;
-            });
-        }
-
-        charge(plan_id, customer_id){
-            stripe.redirectToCheckout({
-              mode: 'payment',
-              lineItems: [{
-                price: plan_id,
-                quantity: 1,
-              }],
-              successUrl: DOMAIN + `/api/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
-              cancelUrl: DOMAIN,
-              customer: {{customer_id}},
-              clientReferenceId: refId,
-            }).then(handleResult);
-        }
-    </script>
-</body>
+    </body>
 
 {{> footer}}

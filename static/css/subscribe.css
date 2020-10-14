@@ -1,0 +1,281 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100vh;
+    display: block;
+    background: #c9c9c9;
+    font-family: Arial, Helvetica;
+    margin: 10 auto;
+    text-align: center;
+}
+
+.fineprint {
+    margin: auto;
+    width: 700px;
+    font-size: 8pt;
+    text-align: center;
+}
+
+.product-card {
+    width: 800px;
+    height: auto;
+    display: flex;
+    background: white;
+    padding: 10px 10px 10px 10px;
+    box-shadow: 0 0 8px #000;
+    border-radius: 0px 0px 20px 20px;
+    text-align: center;
+    justify-content: center;
+    margin: auto;
+}
+
+.product-card .left-column {
+    width: 50%;
+    font-size: 12px;
+    display: table;
+    justify-content: center;
+    margin-top: 5px;
+    margin-bottom: auto;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.product-card .left-column img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 5px;
+    border-radius: 15px 15px 15px 15px;
+    border: 2px solid black;
+    width: 100%;
+    text-align: center;
+    transition: 0.3s ease;
+}
+
+.product-card .left-column .image-choose {
+    width: 330px;
+    margin-bottom: 5px;
+    text-align: center;
+    margin: auto;
+}
+
+.product-card .left-column .image-choose button {
+    border: 2px solid #E1E8EE;
+    border-radius: 6px;
+    padding: 2px 4px;
+    font-size: 13px;
+    color: #5E6977;
+    background-color: #fff;
+    transition: all .5s;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.product-card .left-column .image-choose button:hover,
+.product-card .left-column .image-choose button:focus {
+    border: 2px solid #86939E;
+    outline: none;
+}
+
+.product-card .left-column .image-choose button:active {
+    border: 2px solid #00580A;
+    color: #779876;
+}
+
+.product-card .left-column .image-choose a {
+    color: #358ED7;
+    text-decoration: none;
+    font-size: 12px;
+    display: table;
+}
+
+.product-card .left-column .image-choose a:before {
+    height: 15px;
+    width: 15px;
+    border-radius: 50%;
+    border: 2px solid rgba(53, 142, 215, 0.5);
+    display: inline-block;
+    text-align: center;
+}
+
+.product-card .right-column {
+    width: 50%;
+    position: relative;
+    overflow: hidden;
+    display: table;
+    flex-direction: column;
+    margin-top: auto;
+    margin-bottom: auto;
+    text-align: center;
+}
+
+.product-card .right-column .joinDiscord {
+    font-size: 24pt;
+    font-weight: bold;
+}
+
+.product-card .right-column .mapname {
+    font-size: 24pt;
+    font-weight: bold;
+}
+
+.product-card .right-column .rolename {
+    font-size: 16pt;
+    font-weight: bold;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.product-card .right-column .information {
+    font-size: 11pt;
+    position: relative;
+}
+
+.product-card .right-column .bullets {
+    font-weight: bold;
+    font-size: 12pt;
+    margin-top: 5px;
+    position: relative;
+    line-height: 1.8;
+}
+
+.product-card .right-column .description {
+    font-size: 8pt;
+    maring-top: 5px;
+    text-align: center;
+    position: relative;
+}
+
+@media screen and (max-width:830px) {
+
+    .fineprint {
+        margin: auto;
+        width: 380px;
+        font-size: 8pt;
+        text-align: center;
+    }
+
+    .product-card {
+        width: 400px;
+        height: auto;
+        flex-direction: column;
+        text-align: left;
+    }
+
+    .product-card .left-column {
+        width: 100%;
+        font-size: 9pt;
+    }
+
+    .product-card .left-column img {
+        width: 90%;
+    }
+  
+    .product-card .left-column .image-choose {
+        width: 100%;
+    }
+
+    .product-card .left-column .image-choose button {
+        border: 2px solid #E1E8EE;
+        border-radius: 6px;
+        padding: 1px 1px;
+        font-size: 14px;
+        color: #5E6977;
+        background-color: #fff;
+        transition: all .5s;
+    }
+
+    .product-card .right-column {
+        width: 100%;
+    }
+
+    .product-card .right-column .mapname {
+        font-size: 24pt;
+        font-weight: bold;
+    }
+
+    .product-card .right-column .rolename {
+        font-size: 16pt;
+        font-weight: bold;
+    }
+
+    .product-card .right-column .bullets {
+        font-weight: bold;
+        font-size: 12pt;
+        margin-top: 5px;
+        margin-left: 5px;
+        position: relative;
+        line-height: 1.5;
+    }
+
+    .product-card .left-column .image-choose button {
+        border: 2px solid #E1E8EE;
+        border-radius: 6px;
+        padding: 2px 2px;
+        font-size: 10px;
+        color: #5E6977;
+        background-color: #fff;
+        transition: all .5s;
+        margin-top: 4px;
+    }
+}
+
+@media screen and (max-width:400px) {
+    .product-card {
+        width: 300px;
+        height: auto;
+    }
+
+    .product-card .right-column .bullets {
+        font-weight: bold;
+        font-size: 12pt;
+        margin-top: 5px;
+        position: relative;
+        line-height: 1.4;
+    }
+}
+
+@media screen and (max-width:320px) {
+    .product-card {
+        width: 280px;
+        height: auto;
+    }
+}
+
+.buttons {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.buttons .subscribe {
+    box-shadow: 0px 10px 16px -7px #9acc85;
+    background: linear-gradient(to bottom, #74ad5a 5%, #68a54b 100%);
+    background-color: #74ad5a;
+    border-radius: 10px;
+    border: 2px solid #3b6e22;
+    cursor: pointer;
+    color: #ffffff;
+    font-family: Arial;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 8px 16px;
+    text-decoration: none;
+    text-shadow: 0px 1px 0px #92b879;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    width: 90%;
+}
+
+.buttons .subscribe:hover {
+    background: linear-gradient(to bottom, #68a54b 5%, #74ad5a 100%);
+    background-color: #68a54b;
+}
+
+.buttons .subscribe:active {
+    position: relative;
+    top: 1px;
+}

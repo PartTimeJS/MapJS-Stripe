@@ -8,8 +8,6 @@ const guilds = require('../configs/discords.json').discords;
 const MySQLConnector = require('./mysql.js');
 const db = new MySQLConnector(config.stripe.db);
 
-const DiscordClient = require('./discord.js');
-
 const stripe = require('stripe')(config.stripe.live_sk);
 
 class StripeClient {
@@ -22,11 +20,13 @@ class StripeClient {
         this.donorRole = user.donor_role;
         this.email = user.email;
         this.mapUrl = user.map_url;
-        this.planId = user.plan_id;
-        this.customerId = user.customer_id;
-        this.subscriptionId = user.subscription_id;
+        this.planId = user.plan_id ? user.plan_id : null;
+        this.customerId = user.customer_id ? user.customer_id : null;
+        this.subscriptionId = user.subscription_id ? user.subscription_id : null;
         this.ipAddress = user.ip_address;
         this.sessionId = user.session_id;
+        this.accessToken = user.access_token ? user.access_token : null;
+        this.refreshToken = user.refresh_token ? user.refresh_token : null;
         return;
     }
 
@@ -38,10 +38,12 @@ class StripeClient {
         this.donorRole = userInfo.donor_role;
         this.email = userInfo.email;
         this.mapUrl = userInfo.map_url;
-        this.planId = userInfo.plan_id;
-        this.customerId = userInfo.customer_id;
-        this.subscriptionId = userInfo.subscription_id;
+        this.planId = userInfo.plan_id ? userInfo.plan_id : null;
+        this.customerId = userInfo.customer_id ? userInfo.customer_id : null;
+        this.subscriptionId = userInfo.subscription_id ? userInfo.subscription_id : null;
         this.ipAddress = userInfo.ip_address;
+        this.accessToken = userInfo.access_token ? userInfo.access_token : null;
+        this.refreshToken = userInfo.refresh_token ? userInfo.refresh_token : null;
         return;
     }
 
@@ -73,8 +75,8 @@ class StripeClient {
                         subscription_id: this.subscriptionId
                     },
                 },
-                success_url: this.mapUrl + `/updatesuccess?session_id={CHECKOUT_SESSION_ID}&plan_id=${this.planId}&user_id=${this.userId}&user_name=${this.userName}`,
-                cancel_url: this.mapUrl + `/cancel?user_name=${this.userName}`,
+                success_url: this.mapUrl + `/cardupdate?session_id={CHECKOUT_SESSION_ID}&customer_id=${this.customerId}`,
+                cancel_url: this.mapUrl + '/account',
             },
             function (error, session) {
                 if (error) {
@@ -90,6 +92,9 @@ class StripeClient {
     }
 
     retrieveSession(session_id) {
+        if(!session_id){
+            session_id = this.sessionId;
+        }
         return new Promise(async function(resolve) {
             const session = await stripe.checkout.sessions.retrieve(session_id);
             return resolve(session);
@@ -103,10 +108,44 @@ class StripeClient {
         });
     }
 
-    updateCustomerName() {
+    fetchCustomer() {
+        return new Promise(async (resolve) => {
+            let customerObject;
+            await stripe.customers.retrieve(
+                this.customerId,
+                function (err, customer) {
+                    if (err) {
+                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Fetching Customer.`, err.message);
+                        return resolve(false);
+                    } else {
+                        customerObject = customer;
+                        resolve(customer);
+                    }
+                }
+            );
+            this.customerObject = customerObject;
+        });
+    }
+
+    retrieveCharge(charge_id) {
+        return new Promise(async (resolve) => {
+            const charge = await stripe.charges.retrieve(
+                charge_id
+            );
+            return resolve(charge);
+        });
+    }
+
+    updateCustomerName(customer_id, customer_name) {
+        if(!customer_name){
+            customer_name = (this.userName + ' - ' + this.userId);
+        }
+        if(!customer_id){
+            customer_id = this.customerId;
+        }
         stripe.customers.update(
-            this.customerId, {
-                name: (this.userName + ' - ' + this.userId)
+            customer_id, {
+                name: customer_name
             },
             function (err, customer) {
                 if (err) {
@@ -150,25 +189,6 @@ class StripeClient {
         }
     }
 
-    fetchCustomer() {
-        return new Promise((resolve) => {
-            let customerObject;
-            stripe.customers.retrieve(
-                this.customerId,
-                function (err, customer) {
-                    if (err) {
-                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Fetching Customer.`, err.message);
-                        return resolve(false);
-                    } else {
-                        customerObject = customer;
-                        return resolve(customer);
-                    }
-                }
-            );
-            this.customerObject = customerObject;
-        });
-    }
-
     insertDbRecord() {
         db.query(`
             INSERT INTO ${config.stripe.db.customer_table} (
@@ -177,9 +197,8 @@ class StripeClient {
                     email,
                     guild_id,
                     guild_name,
-                    plan_id,
-                    customer_id,
-                    subscription_id
+                    access_token,
+                    refresh_token
                 ) 
             VALUES (
                     '${this.userId}', 
@@ -187,17 +206,17 @@ class StripeClient {
                     '${this.email}',
                     '${this.guildId}',
                     '${this.guildName}',
-                    '${this.planId}',
-                    '${this.customerId}',
-                    '${this.subscriptionId}'
+                    '${this.accessToken}',
+                    '${this.refreshToken}'
                 )
             ON DUPLICATE KEY UPDATE
-                customer_id = '${this.customerId}',
-                subscription_id = '${this.subscriptionId}';
+                user_name = '${this.userName}',
+                access_token = '${this.accessToken}',
+                refresh_token = '${this.refreshToken}';
         `).catch(err => {
             console.error('Failed to execute query in insertDbRecord', '\r\n:Error:', err);
         });
-        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Customer DB Record Inserted for ${this.userName} (${this.userId}).`);
+        console.log(`[MapJS] [${getTime()}] [services/stripe.js] DB Record Inserted/Updated for ${this.userName} (${this.userId}).`);
     }
 
     insertAccessLog(log) {
@@ -221,7 +240,7 @@ class StripeClient {
                     '${moment().unix()}'
                 );
         `).catch(err => {
-            console.error('Failed to execute query in insertDbRecord', '\r\n:Error:', err);
+            console.error(`[MapJS] [${getTime()}] [services/stripe.js] Failed to execute query in insertDbRecord`, '\r\n:Error:', err);
         });
     }
 
@@ -243,6 +262,21 @@ class StripeClient {
         console.log(`[MapJS] [${getTime()}] [services/stripe.js] DB Record for ${this.userName} (${this.userId}) for guild_id ${this.guildId} has been Updated.`);
     }
 
+    updateLastLogin() {
+        db.query(`
+            UPDATE
+                ${config.stripe.db.customer_table}
+            SET
+                last_login = '${this.planId}'
+            WHERE
+                user_id = '${this.userId}'
+                    AND
+                guild_id = '${this.guildId}';
+        `).catch(err => {
+            console.error(`[MapJS] [${getTime()}] [services/stripe.js] Failed to execute query in updateLastLogin`, '\r\n:Error:', err);
+        });
+    }
+
     clearDbRecord() {
         db.query(`
             UPDATE
@@ -256,7 +290,7 @@ class StripeClient {
                     AND
                 guild_id = '${this.guildId}';
         `).catch(err => {
-            console.error('Failed to execute query in updateDbRecord', '\r\n:Error:', err);
+            console.error(`[MapJS] [${getTime()}] [services/stripe.js] Failed to execute query in clearDbRecord`, '\r\n:Error:', err);
         });
         console.log(`[MapJS] [${getTime()}] [services/stripe.js] DB Record for ${this.userName} (${this.userId}) for guild_id ${this.guildId} has been Cleared.`);
     }
@@ -279,7 +313,7 @@ class StripeClient {
         return new Promise(async (resolve) => {
             let query = `
                 SELECT 
-                    customer_id
+                    *
                 FROM 
                     ${config.stripe.db.customer_table}
                 WHERE
@@ -298,7 +332,7 @@ class StripeClient {
 
     fetchRecordByUser() {
         return new Promise(async (resolve) => {
-            let query = `
+            const data = await db.query(`
                 SELECT 
                     * 
                 FROM 
@@ -307,14 +341,8 @@ class StripeClient {
                     user_id = '${this.userId}'
                         AND
                     guild_id = '${this.guildId}';
-            `;
-            const data = await db.query(query);
+            `);
             if (data) {
-                if (data.length > 1) {
-                    console.error(`[MapJS] [${getTime()}] [services/stripe.js] Deleting Redundant DB Record`, data[1]);
-                    const customer = new StripeClient(data[1]);
-                    customer.deleteDbRecord();
-                }
                 return resolve(data[0]);
             } else {
                 return resolve(false);
@@ -322,38 +350,19 @@ class StripeClient {
         });
     }
 
-    fetchRecordByCustomer(customer_id) {
+    fetchRecordByCustomer() {
         return new Promise(async (resolve) => {
-            if(!customer_id){
-                customer_id = this.customerId;
-            }
-            const query = `
+            const customer_id = this.customerId;
+            const data = await db.query(`
                 SELECT 
                     * 
                 FROM 
                     ${config.stripe.db.customer_table} 
                 WHERE 
-                    customer_id = '${customer_id}';`;
-            const data = await db.query(query);
+                    customer_id = '${customer_id}';
+            `);
             if (data) {
-                if (data.length > 1) {
-                    let foundUser = false;
-                    data.forEach(async (record) => {
-                        const user = new DiscordClient(record);
-                        const member = await user.checkIfMember(record.guild_id);
-                        if (!member) {
-                            foundUser = true;
-                            console.error(`[MapJS] [${getTime()}] [services/stripe.js] Deleting DB Record with Invalid user_id`, record);
-                            const customer = new StripeClient(record);
-                            customer.deleteDbRecord();
-                        }
-                    });
-                    if (foundUser) {
-                        return resolve(resolve);
-                    }
-                } else {
-                    return resolve(data[0]);
-                }
+                return resolve(data[0]);
             } else {
                 return resolve(false);
             }
@@ -378,17 +387,29 @@ class StripeClient {
         });
     }
 
+    retrieveSubscription() {
+        return new Promise(async (resolve) =>{
+            const subscription = await stripe.subscriptions.retrieve(
+                this.subscriptionId
+            );
+            return resolve(subscription);
+        });
+    }
+
     cancelSubscription() {
         return new Promise((resolve) => {
+            const customer_id = this.customerId;
+            const subscription_id = this.subscriptionId;
             stripe.subscriptions.update(
-                this.subscriptionId, {
+                subscription_id, {
                     cancel_at_period_end: true
                 },
                 function (err, confirmation) {
                     if (err) {
                         return resolve(false);
                     } else {
-                        return resolve(confirmation);
+                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer_id}'s subscription ${subscription_id} has been set to cancel at period end.`, confirmation);
+                        return resolve(true);
                     }
                 }
             );
@@ -397,6 +418,8 @@ class StripeClient {
 
     reactivateSubscription() {
         return new Promise((resolve) => {
+            const customer_id = this.customerId;
+            const subscription_id = this.subscriptionId;
             stripe.subscriptions.update(
                 this.subscriptionId, {
                     cancel_at_period_end: false
@@ -405,7 +428,8 @@ class StripeClient {
                     if (err) {
                         return resolve(false);
                     } else {
-                        return resolve(confirmation);
+                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer_id}'s subscription ${subscription_id} has been set to cancel at period end.`, confirmation);
+                        return resolve(true);
                     }
                 }
             );
@@ -421,14 +445,15 @@ class StripeClient {
                     console.error(`[MapJS] [${getTime()}] [services/stripe.js] No Customer ID Set in order to Validate.`, this);
                     return resolve(false);
                 } else {
-                    const customer = await this.fetchCustomer();
+                    let customer = await this.fetchCustomer();
+                    this.customerObject = customer;
                     switch(true) {
                         case !customer:
                         case customer.deleted == true:
                             return resolve(false);
                         default:
                             if(customer.subscriptions.data[0]){
-                                StripeClient.subscriptionId = customer.subscriptions.data[0].id;
+                                this.subscriptionId = customer.subscriptions.data[0].id;
                             }
                             return resolve(true);
                     }
@@ -439,13 +464,8 @@ class StripeClient {
     
     validateSubscription() { 
         return new Promise(async (resolve) => {
-            let customer;
-            if(this.customerObject){
-                customer = this.customerObject;
-            } else {
-                customer = await this.fetchCustomer();
-                this.customerObject = customer;
-            }
+            let customer = await this.fetchCustomer();
+            this.customerObject = customer;
             switch(true){
                 case !customer.subscriptions:
                 case !customer.subscriptions.data[0]:
@@ -459,6 +479,7 @@ class StripeClient {
 
     identifyGuild(data) {
         return new Promise((resolve) => {
+            let guild;
             if(!data){
                 data = this;
             }
@@ -468,25 +489,30 @@ class StripeClient {
                 if (guilds[d].name !== 'test') {
                     if (guild_id) {
                         if (guilds[d].id === guild_id) {
-                            return resolve(guilds[d]);
+                            guild = guilds[d];
                         }
                     } else if (plan_id) {
                         if (guilds[d].recurring_id === plan_id) {
-                            return resolve(guilds[d]);
+                            guild = guilds[d];
                         }
                         if (guilds[d].onetime_id === plan_id) {
-                            return resolve(guilds[d]);
+                            guild = guilds[d];
                         }
                         if (guilds[d].alt_plan_id === plan_id) {
-                            return resolve(guilds[d]);
+                            guild = guilds[d];
                         }
-                    } else {
-                        console.error(`Bad data received from ${data.source}.`, data);
-                        return resolve(false);
                     }
                 }
             }
-            return resolve(false);
+            if(guild){
+                this.donorRole = guild.role;
+                this.guildId = guild.id;
+                this.guildName = guild.name;
+                this.mapUrl = guild.domain;
+                return resolve(guild);
+            } else {
+                return resolve(false);
+            }
         });
     }
 }

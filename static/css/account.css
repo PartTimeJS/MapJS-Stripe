@@ -1,0 +1,233 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100vh;
+    display: block;
+    background: #c9c9c9;
+    font-family: Arial, Helvetica;
+    margin: 10 auto;
+    text-align: center;
+}
+
+.fineprint {
+    margin: auto;
+    width: 700px;
+    font-size: 8pt;
+    text-align: center;
+}
+
+.divline {
+    position: relative;
+    display: inline-block;
+    margin-left: 5px;
+    margin-right: 5px;
+    width: 100%;
+    border-bottom: 1px solid #7A7A7A;
+}
+
+.product-card {
+    width: 800px;
+    height: auto;
+    background: white;
+    padding: 10px 10px 10px 10px;
+    box-shadow: 0 0 8px #000;
+    border-radius: 0px 0px 20px 20px;
+    text-align: center;
+    justify-content: center;
+    margin: auto;
+    font-size: 13px;
+}
+
+.accountTitle {
+    padding: 10px;
+    text-align: center;
+    font-size: 24pt;
+    font-weight: bold;
+}
+
+.accountInfo {
+    font-size: 13pt;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.accountTable {
+    font-size: 13pt;
+    table-layout: auto;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+    width: 750px; 
+}
+.accountTable thead, tbody {
+    column-gap: 25px; 
+    border-bottom: 1px solid #ddd;
+    font-size: 12px;
+}
+
+@media screen and (max-width:830px) {
+
+    .fineprint {
+        margin: auto;
+        width: 380px;
+        font-size: 8pt;
+        text-align: center;
+    }
+
+    .product-card {
+        width: 400px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        height: auto;
+        flex-direction: column;
+        text-align: left;
+    }
+}
+
+@media screen and (max-width:400px) {
+    .product-card {
+        width: 360px;
+        height: auto;
+    }
+}
+
+@media screen and (max-width:320px) {
+    .product-card {
+        width: 280px;
+        height: auto;
+    }
+}
+
+.cancelButton {
+	box-shadow: 0px 0px 0px 2px #8a2a21;
+	background:linear-gradient(to bottom, #c62d1f 5%, #f24437 100%);
+	background-color:#c62d1f;
+	border-radius:10px;
+	border:1px solid #d02718;
+	display:inline-block;
+	cursor:pointer;
+	color:#ffffff;
+	font-family:Verdana;
+	font-size:13px;
+	font-weight:bold;
+	padding:2px 4px;
+	text-decoration:none;
+	text-shadow:0px 1px 0px #810e05;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    width: 65px;
+}
+.cancelButton:hover {
+	background:linear-gradient(to bottom, #f24437 5%, #c62d1f 100%);
+	background-color:#f24437;
+}
+
+.updateButton {
+	box-shadow: 0px 0px 0px 2px #9acc85;
+	background:linear-gradient(to bottom, #74ad5a 5%, #68a54b 100%);
+	background-color:#74ad5a;
+	border-radius:10px;
+	border:1px solid #3b6e22;
+	display:inline-block;
+	cursor:pointer;
+	color:#ffffff;
+	font-family:Verdana;
+	font-size:14px;
+	font-weight:bold;
+    padding: 2px 4px;
+    text-decoration: none;
+    text-shadow: 0px 1px 0px #92b879;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    width: 115px;
+}
+.updateButton:hover {
+	background:linear-gradient(to bottom, #68a54b 5%, #74ad5a 100%);
+	background-color:#68a54b;
+}
+
+.deadButton {
+	box-shadow: 0px 0px 0px 2px #595959;
+	background:linear-gradient(to bottom, #6b6b6b 5%, #ababab 100%);
+	background-color:#6b6b6b;
+	border-radius:10px;
+	border:1px solid #949494;
+	display:inline-block;
+	cursor:pointer;
+	color:#d1d1d1;
+	font-family:Verdana;
+	font-size:13px;
+	font-weight:bold;
+    padding: 2px 4px;
+	text-decoration:none;
+    text-shadow:0px 1px 0px #000000;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    width: 115px;
+}
+.deadButtonCancel {
+	box-shadow: 0px 0px 0px 2px #595959;
+	background:linear-gradient(to bottom, #6b6b6b 5%, #ababab 100%);
+	background-color:#6b6b6b;
+	border-radius:10px;
+	border:1px solid #949494;
+	display:inline-block;
+	cursor:pointer;
+	color:#d1d1d1;
+	font-family:Verdana;
+	font-size:13px;
+	font-weight:bold;
+    padding: 2px 4px;
+	text-decoration:none;
+    text-shadow:0px 1px 0px #000000;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    width: 65px;
+}
+
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1; /* Sit on top */
+  padding-top: 20px; /* Location of the box */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+.modal-content {
+  background-color: #00FF00;
+  margin: auto;
+  opacity: 0.9;
+  padding: 10px;
+  border: 2px solid #888;
+  height: 40px;
+  width: 80%;
+}
+.close {
+  color: #aaaaaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+.close:hover,
+.close:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.discordButton {
+    border:none;
+    background-color:transparent;
+    outline:none;
+}

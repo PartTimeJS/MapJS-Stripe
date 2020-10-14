@@ -33,13 +33,12 @@ router.get('/subscribe', async (req, res) => {
         guild = guilds[0];
     }
     if(guild){
-        if(!req.session.user_id || !req.session.guild_id){
+        if(!req.session.email || !req.session.user_id || !req.session.guild_id){
+            console.log(req.session.email, req.session.user_id, req.session.guild_id);
             req.session.destroy();
             return res.redirect('/login');
         }
-        const customer = new StripeClient(req.session);
-        const record = await customer.fetchRecordByUser();
-        req.session.map_name = guild.name;
+        req.session.guild_name = guild.name;
         req.session.key = guild.test_pk ? guild.test_pk : config.stripe.live_pk;
         req.session.map_url = `https://${req.get('host')}`;
         req.session.recurring_id = guild.recurring_id;
@@ -47,6 +46,9 @@ router.get('/subscribe', async (req, res) => {
         req.session.amt1 = guild.recurring_cost;
         req.session.amt2 = guild.onetime_cost;
         req.session.donor_role = guild.role;
+        const customer = new StripeClient(req.session);
+
+        const record = await customer.fetchRecordByUser();
         if(record){
             customer.setClientInfo(record);
             if(customer.customerID && customer.subscriptionID){
@@ -58,12 +60,13 @@ router.get('/subscribe', async (req, res) => {
                 return;
             }
         } else {
+            console.log('customer', customer);
             customer.insertDbRecord();
-            res.redirect('/subscribe');
+            res.redirect('/login');
             return;
         }
     } else {
-        console.error(`[MapJS] [routes/stripe.js] No matching guild for https://${req.get('host')}`);
+        console.log(`[MapJS] [${getTime()}] [routes/stripe.js] No matching guild for https://${req.get('host')}`);
         res.redirect('/guildError');
         return;
     }
@@ -87,84 +90,90 @@ router.get('/account', async (req, res) => {
         }
         const customer = new StripeClient(req.session);
         const record = await customer.fetchRecordByUser();
-        req.session.map_name = guild.name;
-        req.session.key = guild.test_pk ? guild.test_pk : config.stripe.live_pk;
-        req.session.map_url = `https://${req.get('host')}`;
-        req.session.recurring_id = guild.recurring_id;
-        req.session.onetime_id = guild.onetime_id;
-        req.session.amt1 = guild.recurring_cost;
-        req.session.amt2 = guild.onetime_cost;
-        req.session.donor_role = guild.role;
-        if(record){
-            const records = await customer.fetchAccountRecords();
-            req.session.subscriptions = [];
-            for(let r = 0, rlen = records.length; r < rlen; r++){
-                let user_record = {};
-                user_record.subscription = guild.name;
-                if(records[r].customer_id == 'Lifetime'){
-                    user_record.created = false;
-                    user_record.next_payment = false;
-                    user_record.renewable = false;
-                    user_record.end_date = false;
-                    user_record.cancellable = false;
-                    user_record.update_payment = false;
-                    req.session.subscriptions.push(user_record);
-                } else if(Number.isInteger(parseInt(record.subscription_id))){
-                    user_record.created = false;
-                    user_record.next_payment = false;
-                    user_record.renewable = true;
-                    user_record.end_date = moment.unix(parseInt(record.subscription_id)).format('dddd, MMMM Do h:mmA');
-                    user_record.cancellable = false;
-                    user_record.update_payment = false;
-                    req.session.subscriptions.push(user_record);
-                } else {
-                    customer.setClientInfo(records[r]);
-                    let cus_valid = await customer.validateCustomer();
-                    if(cus_valid){
-                        let sub_valid = await customer.validateSubscription();
-                        if(sub_valid){
-                            user_record.created = moment.unix(customer.customerObject.subscriptions.data[0].created).format('dddd, MMMM Do h:mmA');
-                            user_record.renewable = false;
-                            if(customer.customerObject.subscriptions.data[0].cancel_at_period_end){
-                                user_record.end_date = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do h:mmA');
-                                user_record.next_payment = 'Cancelled';
-                                user_record.reactivatable = true;
-                            } else {
-                                user_record.end_date = false;
-                                user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do h:mmA');
-                                user_record.reactivatable = false;
-                            }
-                            user_record.cancellable = true;
-                            user_record.update_payment = true;
-                            user_record.session_id = await customer.createSession();
-                            req.session.subscriptions.push(user_record);
-                        } else {
-                            if(customer.customerObject.subscriptions.data[0].status == 'past_due'){
-                                user_record.created = moment.unix(customer.customerObject.subscriptions.data[0].created).format('dddd, MMMM Do h:mmA');
-                                user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do h:mmA');
-                                user_record.renewable = false;
-                                user_record.end_date = 'PAST DUE';
+        req.session.subscriptions = [];
+        try {
+            req.session.guild_name = guild.name;
+            req.session.key = guild.test_pk ? guild.test_pk : config.stripe.live_pk;
+            req.session.map_url = `https://${req.get('host')}`;
+            req.session.recurring_id = guild.recurring_id;
+            req.session.onetime_id = guild.onetime_id;
+            req.session.amt1 = guild.recurring_cost;
+            req.session.amt2 = guild.onetime_cost;
+            req.session.donor_role = guild.role;
+            if(record){
+                const records = await customer.fetchAccountRecords();
+                for(let r = 0, rlen = records.length; r < rlen; r++){
+                    let user_record = {};
+                    user_record.subscription = records[r].guild_name;
+                    if(records[r].customer_id == 'Lifetime'){
+                        user_record.lifetime = true;
+                        user_record.created = false;
+                        user_record.next_payment = false;
+                        user_record.renewable = false;
+                        user_record.end_date = false;
+                        user_record.cancellable = false;
+                        user_record.update_payment = false;
+                        req.session.subscriptions.push(user_record);
+                    } else {
+                        customer.setClientInfo(records[r]);
+                        user_record.customer_id = records[r].customer_id;
+                        const valid = await customer.validateCustomer();
+                        if(valid){
+                            if(Number.isInteger(parseInt(records[r].subscription_id))){
+                                user_record.created = moment.unix(customer.customerObject.created).format('D-MMM-YYYY');
+                                user_record.next_payment = false;
+                                user_record.renewable = true;
+                                user_record.end_date = moment.unix(parseInt(records[r].subscription_id)).format('ddd, MMM Do');
                                 user_record.cancellable = false;
-                                user_record.update_payment = true;
-                                req.session.session_id = await customer.createSession();
+                                user_record.update_payment = false;
                                 req.session.subscriptions.push(user_record);
+                            } else {
+                                let sub_valid = await customer.validateSubscription();
+                                if(sub_valid){
+                                    user_record.created = moment.unix(customer.customerObject.created).format('D-MMM-YYYY');
+                                    user_record.renewable = false;
+                                    if(customer.customerObject.subscriptions.data[0].cancel_at_period_end){
+                                        user_record.end_date = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('ddd, MMM Do');
+                                        user_record.next_payment = 'Cancelled';
+                                        user_record.reactivatable = true;
+                                    } else {
+                                        user_record.end_date = false;
+                                        user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('ddd, MMM Do');
+                                        user_record.reactivatable = false;
+                                    }
+                                    user_record.cancellable = true;
+                                    user_record.update_payment = true;
+                                    user_record.session_id = await customer.createSession();
+                                    req.session.subscriptions.push(user_record);
+                                } else {
+                                    if(customer.customerObject.subscriptions.data[0]){
+                                        if(customer.customerObject.subscriptions.data[0].status == 'past_due'){
+                                            user_record.created = moment.unix(customer.customerObject.created).format('D-MMM-YYYY');
+                                            user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('dddd, MMMM Do');
+                                            user_record.renewable = false;
+                                            user_record.end_date = 'PAST DUE';
+                                            user_record.cancellable = false;
+                                            user_record.update_payment = true;
+                                            req.session.session_id = await customer.createSession();
+                                            req.session.subscriptions.push(user_record);
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
+                    }                                                                   
                 }
-                if((r + 1) === records.length){
-                    const data =  Object.assign({}, defaultData, req.session);
-                    res.render('account', data);
-                    return;
-                }
+                req.session.subscriptions = JSON.stringify(req.session.subscriptions);
+                const data =  Object.assign({}, defaultData, req.session, );
+                res.render('account', data);
+                return;
             }
-        } else {
-            customer.insertDbRecord();
-            res.redirect('/account');
+        } catch(e) {
+            console.log(`[MapJS] [${getTime()}] [routes/stripe.js] Error preparing customer data for account page.`, '\ncustomer', customer, '\nerror', e);
         }
     } else {
-        console.error(`[MapJS] [routes/stripe.js] No matching guild for https://${req.get('host')}`);
-        res.redirect('/guildError');
+        console.log(`[MapJS] [${getTime()}] [routes/stripe.js] No matching guild for https://${req.get('host')}`);
+        res.redirect('/error');
     }
 });
 
@@ -173,41 +182,59 @@ router.get('/error', (req, res) => {
 });
 
 router.get('/success', async function(req, res) {
-    const customer = new StripeClient(req.query);
+    req.session.updated = 0;
+    req.session.save();
+    const customer = new StripeClient(req.session);
     const guild = await customer.identifyGuild();
-    const session = await customer.retrieveSession();
-    customer.customerId = session.customer;
+    const session = await customer.retrieveSession(req.query.session_id);
     if(session){
-        const record = await customer.fetchRecordByCustomer();
-        const user = new DiscordClient(record);
-        console.log('/success - session', req.session);
+        customer.customerId = session.customer;
+        req.session.customer_id = session.customer;
         customer.updateCustomerName(session.customer, session.client_reference_id);
+        console.log('/success - session', session);
+        console.log('/success - req.session', req.session);
+        const record = await customer.fetchRecordByUser();
+        const user = new DiscordClient(record);
+        user.donorRole = guild.role;
         if(!session.subscription || session.subscription === null){
+            customer.subscriptionId = req.session.onetime_id;
             if(Number.isInteger(parseInt(record.subscription_id))){
+                //customer.insertStripeLog('Received Renewal Payment for One Month Access.');
+                user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'One Month Access Renewal! 📋', '');
                 customer.subscriptionId = moment.unix(record.subscription_id).add(1, 'M').unix();
                 console.log('added a month to a subscription','previous:',record.subscription_id,'after:',customer.subscriptionId);
             } else {
+                //customer.insertStripeLog('Received Payment for One Month Access.');
+                user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'New One Month Access Payment! 📋', '');
                 customer.subscriptionId = moment().add(1, 'M').unix();
+                
             }
         } else {
             customer.subscriptionId = session.subscription;
+            const subscription = await customer.retrieveSubscription();
+            customer.planId = subscription.items.data[0].price.id;
+            //customer.insertStripeLog('Created a New Monthly Subscription.');
+            user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'New Subscription Created! 📋', '');
         }
+        req.session.subscription_id = customer.subscriptionId;
         console.log('/success - StripeClient', customer);
-        customer.insertDbRecord();
+        customer.updateDbRecord();
         console.log('/success - DiscordClient', user);
-        user.assignDonorRole();
+        user.assigned = await user.assignDonorRole();
         if(user.assigned){
             user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
-        } 
+        }
         user.sendMessage(guild.welcome_channel, config.donor_welcome_content.replace('%usertag%', '<@' + req.query.user_id + '>'));
-        user.sendChannelEmbed(guild.stripe_log_channel, 'New Subscription Created! 📋', '');
+    } else {
+        console.error(`[MapJS] [${getTime()}] [routes/stripe.js] No Session retrieved after purchase.`, req.session);
     }
     res.redirect('/');
     return;
 });
 
 
-router.get('/updatesuccess', async function(req, res) {
+router.get('/cardupdate', async function(req, res) {
+    req.session.perms = false;
     const customer = new StripeClient(req.query);
     const guild = await customer.identifyGuild();
     const session = await customer.retrieveSession();
@@ -221,7 +248,39 @@ router.get('/updatesuccess', async function(req, res) {
         user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
     }
     user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Customer Card Updated ✏', '');
-    res.redirect(config.map_url);
+    res.redirect('/account');
+    return;
+});
+
+router.get('/cancel', async function(req, res) {
+    const customer = new StripeClient(req.query);
+    const record = await customer.fetchRecordByCustomer();
+    const user = new DiscordClient(record);
+    customer.setClientInfo(record);
+    const guild = await customer.identifyGuild();
+    const cancelled = await customer.cancelSubscription();
+    if(cancelled){
+        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Subscription Cancelled 📝', '');
+    } else {
+        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Error Cancelling Subscription', '');
+    }
+    res.redirect('/account');
+    return;
+});
+
+router.get('/reactivate', async function(req, res) {
+    const customer = new StripeClient(req.query);
+    const record = await customer.fetchRecordByCustomer();
+    const user = new DiscordClient(record);
+    customer.setClientInfo(record);
+    const guild = await customer.identifyGuild();
+    const reactivated = await customer.reactivateSubscription();
+    if(reactivated){
+        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Subscription Cancelled 📝', '');
+    } else {
+        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Error Cancelling Subscription', '');
+    }
+    res.redirect('/account');
     return;
 });
 
@@ -235,53 +294,54 @@ router.post('/webhook', bodyParser.raw({
             console.log(webhook);
             const customer = new StripeClient({ customer_id: webhook.data.object.customer });
             const record = await customer.fetchRecordByCustomer();
-            const user = new DiscordClient(record);
-            customer.setClientInfo(record);
-            const guild = await customer.identifyGuild(record);
-            customer.setGuildInfo(guild);
-            user.setGuildInfo(guild);
-
-
-            if(webhook.type === 'charge.succeeded'){
-                console.log(`[MapJS] [${getTime('stamp')}] [routes/stripe.js] Received Successful Charge webhook for ${customer.userName} (${customer.customerId}).`);
-                user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Payment Successful! 💰 ', 'Amount: **$' + parseFloat(webhook.data.object.amount / 100).toFixed(2) + '**');
-                user.assigned = await user.assignDonorRole();
-                if(user.assigned){
-                    user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
-                }
-
-
-            } else if (webhook.type === 'customer.subscription.cancelled'){
-                user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Subscription Deleted 📉', '');
-                customer.deleteCustomer();
-                customer.clearDbRecord();
-                user.removed = await user.removeDonorRole();
-                if(user.removed){
-                    user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
-                }
-            
-
-            } else if (webhook.type ===  'charge.failed' || webhook.type === 'invoice.payment_failed'){
-                if(webhook.data.object.attempt_count){
-                    user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Payment Failed ⛔', `Attempt Count: **${webhook.data.object.attempt_count}** of **5**`);
-                } else {
-                    user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Payment Failed ⛔', webhook.data.object.failure_message);
-                }
-                user.removed = await user.removeDonorRole();
-                if(user.removed){
-                    user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Removed! 📝', '');
-                }
-                const message = 'Uh Oh! Your Donor Payment failed to ' + guild.name + '. \n' +
-                                'Reason: `' + webhook.data.object.failure_message + '` \n\n' +
-                                'This was attempt ' + webhook.data.object.attempt_count + '/5. \n' +
-                                'Please visit ' + guild.domain + '/account to update your payment information. \n';
-                if (webhook.data.object.attempt_count && webhook.data.object.attempt_count != 5) {
-                    user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', message);
-                } else {
-                    user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', message);
+            if(record){
+                const user = new DiscordClient(record);
+                customer.setClientInfo(record);
+                const guild = await customer.identifyGuild(record);
+                user.setGuildInfo(guild);
+    
+    
+                if(webhook.type === 'charge.succeeded'){
+                    console.log(`[MapJS] [${getTime()}] [routes/stripe.js] Received Successful Charge webhook for ${customer.userName} (${customer.customerId}).`);
+                    user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Payment Successful! 💰 ', 'Amount: **$' + parseFloat(webhook.data.object.amount / 100).toFixed(2) + '**');
+                    user.assigned = await user.assignDonorRole();
+                    if(user.assigned){
+                        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
+                    }
+    
+    
+                } else if (webhook.type === 'customer.subscription.cancelled'){
+                    user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Subscription Deleted 📉', '');
+                    customer.deleteCustomer();
+                    customer.clearDbRecord();
+                    user.removed = await user.removeDonorRole();
+                    if(user.removed){
+                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                    }
+                
+    
+                } else if (webhook.type === 'invoice.payment_failed'){
+                    const charge = await customer.retrieveCharge(webhook.data.object.charge);
+                    if(webhook.data.object.attempt_count){
+                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Payment Failed ⛔', 'Reason: ' + charge.failure_message + '\nAttempt Count: **' + webhook.data.object.attempt_count + '** of **5**');
+                    } else {
+                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Payment Failed ⛔', 'Reason: ' + charge.failure_message);
+                    }
+                    user.removed = await user.removeDonorRole();
+                    if(user.removed){
+                        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Removed! 📝', '');
+                    }
+                    const message = 'Uh Oh! Your Donor Payment failed to ' + guild.name + '. \n' +
+                                    'Reason From Bank: `' + charge.failure_message + '` \n' +
+                                    'This was attempt: ' + webhook.data.object.attempt_count + '/5. \n\n' +
+                                    'Please visit ' + guild.domain + '/account to update or change your payment information. \n';
+                    if (webhook.data.object.attempt_count && webhook.data.object.attempt_count != 5) {
+                        user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', message);
+                    } else {
+                        user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', message);
+                    }
                 }
             }
-
 
             res.sendStatus(200);
             return;
@@ -291,7 +351,6 @@ router.post('/webhook', bodyParser.raw({
         console.error(e);
     } 
 });
-
 
 function getTime (type) {
     switch (type) {
@@ -305,6 +364,5 @@ function getTime (type) {
             return moment().format('hh:mmA');
     }
 }
-
 
 module.exports = router;

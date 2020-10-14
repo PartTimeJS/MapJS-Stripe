@@ -106,27 +106,25 @@ app.use(session({
     cookie: {maxAge: 604800000}
 }));
 
-if (config.discord.enabled) {
-    app.use('/api/discord', discordRoutes);
+app.use('/api/discord', discordRoutes);
 
-    // Discord error middleware
-    /* eslint-disable no-unused-vars */
-    app.use((err, req, res, next) => {
-        switch (err.message) {
-            case 'NoCodeProvided':
-                return res.status(400).send({
-                    status: 'ERROR',
-                    error: err.message,
-                });
-            default:
-                return res.status(500).send({
-                    status: 'ERROR',
-                    error: err.message,
-                });
-        }
-    });
-    /* eslint-enable no-unused-vars */
-}
+// Discord error middleware
+/* eslint-disable no-unused-vars */
+app.use((err, req, res, next) => {
+    switch (err.message) {
+        case 'NoCodeProvided':
+            return res.status(400).send({
+                status: 'ERROR',
+                error: err.message,
+            });
+        default:
+            return res.status(500).send({
+                status: 'ERROR',
+                error: err.message,
+            });
+    }
+});
+/* eslint-enable no-unused-vars */
 
 app.use('/api/stripe', stripeRoutes);
 
@@ -141,37 +139,22 @@ app.use(async (req, res, next) => {
     if (req.path.includes('/api/discord/') || req.path === '/login') {
         return next();
     }
-    // if(config.denylist.includes(req.session.user_id)){
-    //     return res.render('blocked', defaultData);
-    // }
     if (req.session.user_id && req.session.logged_in) {
+        if(config.denylist.includes(req.session.user_id)){
+            return res.render('blocked', defaultData);
+        }
         const user = new DiscordClient(req.session);
         const customer = new StripeClient(req.session);
-        defaultData.logged_in = true;
-        defaultData.username = req.session.user_name;
-        if (!req.session.valid) {
-            console.error(`[MapJS] [${getTime()}] [index.js] Non-Donor Login Attempt, ${user.userName} (${user.userId})`);
-            customer.insertAccessLog('Non-Donor Login Attempt.');
-            res.redirect('/subscribe');
-            return;
-        }
         if (!(await isValidSession(req.session.user_id))) {
             console.debug(`[MapJS] [${getTime()}] [index.js] Detected multiple sessions for ${user.userName} (${user.userId}). Clearing old ones...`);
-            if(req.session.updated < (unix - 300)){
-                req.session.updated = unix;
-                customer.insertAccessLog('Multiple Sessions Detected. Cleared Older Sessions.');
-            }
-            if(req.session.access_log_channel){
-                await user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Cleared Excess Sessions.', '');
-            }
+            customer.insertAccessLog('Multiple Sessions Detected. Cleared Older Sessions.');
+            user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Cleared Excess Sessions.', '');
             await clearOtherSessions(req.session.user_id, req.sessionID);
         }
-        if(!req.session.perms || !req.session.updated || req.session.updated < (unix - 900)){
+        if(!req.session.perms || !req.session.updated || req.session.updated < (unix - 3600)){
             req.session.updated = unix;
+            user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully via Cookie.', '');
             customer.insertAccessLog('Authenticated Successfully via Cookie Session.');
-            if(req.session.access_log_channel){
-                await user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully via Cookie.', '');
-            }
             req.session.perms = await user.getPerms();
             if(!req.session.perms){
                 customer.insertAccessLog('Invalid Permissions Returned. User Session Destroyed.');
@@ -180,20 +163,30 @@ app.use(async (req, res, next) => {
                 return;
             }
         }
+        if(config.open_map === true){
+            res.redirect('/login');
+            return;
+        }
         const perms = req.session.perms;
-        defaultData.hide_map = !perms.map;
-        if (defaultData.hide_map) {
-            if(config.open_map === true){
-                res.redirect('/login');
-                return;
+        if (!perms.map) {
+            req.session.unauthorized_attempts = 0;
+            if(!req.session.unauthorized_attempts){
+                req.session.unauthorized_attempts = 1;
+            } else if(req.session.unauthorized_attempts > 10){
+                res.redirect('/subscribe');
+            } else if(req.session.unauthorized_attempts > 100){
+                //res.redirect('/warning');
+            } else {
+                req.session.unauthorized_attempts++;
             }
-            // No view map permissions, go to login screen
-            console.error('[index.js] Invalid view map permissions for user', req.session.user_id);
+            req.session.save();
+            console.error(`[MapJS] [${getTime()}] [index.js] Non-Donor Login Attempt, ${req.session.user_name} (${req.session.user_id})`);
             customer.insertAccessLog('Non-Donor Login Attempt.');
             await user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Non-Donor Login Attempt.', '');
             res.redirect('/subscribe');
             return;
         }
+        req.session.save();
         defaultData.hide_pokemon = !perms.pokemon;
         defaultData.hide_raids = !perms.raids;
         defaultData.hide_gyms = !perms.gyms;

@@ -122,20 +122,20 @@ function customersAudit(customers) {
                                         user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
                                     }
                                 } else {
-                                    //user.removed = await user.removeDonorRole();
+                                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${customer.userId}) has an invalid Subscription.`);
+                                    user.removed = await user.removeDonorRole();
                                     if (user.removed) {
-                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${customer.userId}) has an invalid Subscription.`);
                                         user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                     }
                                 }
                             } else {
                                 user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Invalid Customer Found 🔎', '');
                                 customer.clearDbRecord();
-                                //customer.deleted = customer.deleteCustomer();
+                                // customer.deleted = customer.deleteCustomer();
                                 if(customer.deleted){
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Invalid Customer Deleted', '');
                                 }
-                                //user.removed = await user.removeDonorRole();
+                                user.removed = await user.removeDonorRole();
                                 if (user.removed) {
                                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] Invalid Customer ${customer.userName} (${customer.userId}) found with a Donor Role.`);
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
@@ -149,10 +149,14 @@ function customersAudit(customers) {
                         if(Number.isInteger(parseInt(record.subscription_id))){
                             const expiration = parseInt(record.subscription_id);
                             if(expiration < moment().unix()){
-
-                                // user.removed = await user.removeDonorRole();
+                                customer.clearDbRecord();
+                                // customer.deleted = customer.deleteCustomer();
+                                if(customer.deleted){
+                                    user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Expired Customer Deleted', '');
+                                }
+                                user.removed = await user.removeDonorRole();
                                 if (user.removed) {
-                                    user.sendDmEmbed('');
+                                    user.sendDmEmbed('FF0000', 'One Month Access Expired!', `Please visit ${guild.domain} to renew.`);
                                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] Invalid Customer ${customer.userName} (${customer.userId}) found with a Donor Role.`);
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'One Month Access Expired ⌛', '');
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
@@ -182,13 +186,10 @@ function customersAudit(customers) {
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                 }
                                 //customer.deleteCustomer();
-                                console.error(`[MapJS] [${getTime()}] [services/stripe.js] No Active Subscription found for ${stripeCustomer.id}.`);
+                                console.error(`[MapJS] [${getTime()}] [services/stripe.js] No Active Subscription found for ${stripeCustomer.id}, ${user.userName} (${user.userId}).`);
                             }
                         }   
                     }
-                } else {
-                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] No database record found for ${stripeCustomer.id}.`);
-                    customer.insertDbRecord();
                 }
                 if ((c + 1) == length) {
                     return resolve();
@@ -231,17 +232,27 @@ function databaseAudit() {
                         const customer = new StripeClient(record);
                         const validCustomer = await customer.validateCustomer();
                         if(validCustomer){
-                            if(customer.planId === guild.onetime_id){
-                                if(record.subscription_id < moment().unix()){
+                            if(Number.isInteger(parseInt(record.subscription_id))){
+                                const expiration = parseInt(record.subscription_id);
+                                if(expiration < moment().unix()){
+                                    user.sendDmEmbed('FF0000', 'One Month Access Expired!', `Please visit ${guild.domain} to renew.`);
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'One Month Access Expired ⌛', '');
-                                    //customer.deleted = customer.deleteCustomer();
+                                    customer.clearDbRecord();
+                                    customer.deleted = customer.deleteCustomer();
                                     if(customer.deleted){
                                         user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Expired Customer Deleted', '');
                                     }
-                                    //user.removed = await user.removeDonorRole();
+                                    user.removed = await user.removeDonorRole();
                                     if (user.removed) {
-                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Invalid Customer ${customer.userName} (${customer.userId}) found with a Donor Role.`);
+                                        user.sendDmEmbed('FF0000', 'Your One Month Access has Expired!', `Please visit ${guild.domain} to sign back up.`);
                                         user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                                    }
+                                } else {
+                                    user.assigned = await user.assignDonorRole();
+                                    if (user.assigned) {
+                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${record.user_id}) found without a Donor Role and assigned Role.`);
+                                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
+                                        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
                                     }
                                 }
                             } else {
@@ -267,9 +278,8 @@ function databaseAudit() {
                                     }
                                 } else {
                                     console.error(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${customer.userId}) has an invalid Subscription.`, customer);
-                                    //user.removed = await user.removeDonorRole();
+                                    user.removed = await user.removeDonorRole();
                                     if (user.removed) {
-                                        console.error(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${customer.userId}) has an invalid Subscription.`);
                                         user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                     }
                                 }
@@ -277,11 +287,7 @@ function databaseAudit() {
                         } else {
                             user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Invalid Customer Found 🔎', '');
                             customer.clearDbRecord();
-                            //customer.deleted = customer.deleteCustomer();
-                            if(customer.deleted){
-                                user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Invalid Customer Deleted', '');
-                            }
-                            //user.removed = await user.removeDonorRole();
+                            user.removed = await user.removeDonorRole();
                             if (user.removed) {
                                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] Invalid Customer ${customer.userName} (${customer.userId}) found with a Donor Role.`);
                                 user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
@@ -366,24 +372,23 @@ function membersAudit(guild, members) {
                                             user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned ⚖', '');
                                         }
                                     } else {
-                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Found invalid customer: ${record.user_name} ${record.customer_id}`);
-                                        //user.removed = await user.removeDonorRole();
+                                        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Found Invalid Customer, ${record.user_name} (${record.customer_id})`);
+                                        user.removed = await user.removeDonorRole();
                                         if (user.removed) {
                                             user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                         }
                                     }
                                 } else {
                                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] User's plan (${record.plan_id}) does not match any discord plans. Clearing customer data for ${record.user_name} in the db record.`);
-                                    customer.clearDbRecord();
-                                    //user.removed = await user.removeDonorRole();
+                                    user.removed = await user.removeDonorRole();
                                     if (user.removed) {
                                         user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                     }
                                 }
                             } else {
-                                console.error(`[MapJS] [${getTime()}] [services/stripe.js] User has no Customer ID in the database. Removing Donor Role from ${record.user_name}`);
+                                console.error(`[MapJS] [${getTime()}] [services/stripe.js] No Customer ID in the Database, ${record.user_name} (${record.user_id})`);
                                 user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Member found without a Customer ID 🔎', '');
-                                //user.removed = await user.removeDonorRole();
+                                user.removed = await user.removeDonorRole();
                                 if (user.removed) {
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                 }
@@ -391,9 +396,8 @@ function membersAudit(guild, members) {
                         }
                     }
                 } else {
-                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Record not found for ${customer.userName} (${customer.userId}). Inserting a record.`, 'log_channel', guild.stripe_log_channel);
+                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Record not found for ${customer.userName} (${customer.userId}). Inserting a Record.`, 'log_channel', guild.stripe_log_channel);
                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'DB Record Not Found for Customer 🔎', '');
-                    customer.insertDbRecord();
                 }
                 if ((m + 1) === members.length){
                     return resolve();
@@ -420,14 +424,14 @@ async function (ot) {
     return ot.done();
 });
 
-setTimeout(async () => {
-    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Audits...`);
-    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Stripe Audit... (1 of 3)`);
-    await stripeAudit();
-    await databaseAudit();
-    await guildsAudit();
-    console.info(`[MapJS] [${getTime()}] [services/stripe.js] Audits Complete.`);
-}, 5000);
+// setTimeout(async () => {
+//     console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Audits...`);
+//     console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Stripe Audit... (1 of 3)`);
+//     await stripeAudit();
+//     await databaseAudit();
+//     await guildsAudit();
+//     console.info(`[MapJS] [${getTime()}] [services/stripe.js] Audits Complete.`);
+// }, 5000);
 
 function getTime(type) {
     switch (type) {

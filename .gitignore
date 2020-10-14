@@ -130,3 +130,6 @@ static/locales/*
 
 # No docker-compose.yml files
 docker-compose.yml
+
+# Ignore Non-Obfuscated
+*.nonobf

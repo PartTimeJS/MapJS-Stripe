@@ -119,11 +119,6 @@
         text-align: center;
     }
 
-    .product-card .right-column .joinDiscord {
-        font-size: 24pt;
-        font-weight: bold;
-    }
-
     .product-card .right-column .mapname {
         font-size: 24pt;
         font-weight: bold;
@@ -319,14 +314,8 @@
 
             <div class='right-column'>
 
-                <div class = "joinDiscord">
-                    <form action="https://discord.com/channels/{{guild_id}}">
-                        <img src='/img/joinDiscordButton.png' alt='Join Discord'>
-                    </form>
-                </div>
-
                 <div class='mapname'>
-                    {{map_name}}
+                    {{guild_name}}
                 </div>
 
                 <div class='rolename'>
@@ -349,7 +338,6 @@
                     <br>
                     - Exclusive Gold Star Trainer Lounge Chat -
                 </div>
-                <!--
                 <div class='buttons'>
                     <button id='recurring' class='subscribe'>
                         <i class='fas fa-map-marked-alt'></i> Donate ${{amt1}} Monthly
@@ -358,11 +346,11 @@
                         <i class='fas fa-map-marked-alt'></i> Donate ${{amt2}} One-Time
                     </button>
                 </div>
-                -->
 
                 <div class='description'>
                     The above buttons will redirect you to a secure Stripe checkout page.
                     Cancel your monthly donation at any time from this same URL or from the Account page when viewing the map.
+                    Please visit the discord support channel or direct message an admin for assistance.
                 </div>
             </div>
         </div>
@@ -375,34 +363,29 @@
             <a href=https://stripe.com/docs/security/stripe>https://stripe.com/docs/security/stripe </a><br> 
             Do not redistribute data outside of donor channels. Doing so will result in immediate revokation of all access.
             Due to the nature of these services, there are no guarantees or refunds for donations due to outages.
-            {{map_name}} is a Non-Profit service. We are not associated with Niantic, ThePokemonCompany, or any of
+            {{guild_name}} is a Non-Profit service. We are not associated with Niantic, ThePokemonCompany, or any of
             it's subsidiaries. All spawn locations, POIs, and data are crowd-sourced by the local community.
         </div>
         
         <script type='text/javascript'>
-
             const user_id = '{{user_id}}';
             const user_name = '{{user_name}}';
             const user_email = '{{email}}';
-            
             const guild_id = '{{guild_id}}';
-            console.log(guild_id);
             const recurring_id = '{{recurring_id}}';
             const onetime_id = '{{onetime_id}}';
             const reference_id = user_name + ' - ' + user_id;
             const domain = location.href.replace(/[^/]*$/, '');
             const stripe = Stripe('{{key}}');
-
             var handleResult = function (result) {
                 if (result.error) {
                     var displayError = document.getElementById('error-message');
                     displayError.textContent = result.error.message;
                 }
             }
-            
             document.getElementById('recurring').addEventListener('click', function (e) {
                 stripe.redirectToCheckout({
-                    mode: subscription,
+                    mode: 'subscription',
                     lineItems: [{
                     price: recurring_id,
                     quantity: 1
@@ -413,7 +396,6 @@
                     clientReferenceId: reference_id,
                 }).then(handleResult);
             });
-
             document.getElementById('onemonth').addEventListener('click', function (e) {
                 stripe.redirectToCheckout({
                     mode: 'payment',
@@ -427,52 +409,12 @@
                     clientReferenceId: reference_id,
                 }).then(handleResult);
             });
-
             const image = document.querySelector('.left-column img');
-
-            document.getElementById('1').addEventListener('click', () => {
-                image.src = '/img/subscribe/1.png';
-            });
-
-            document.getElementById('2').addEventListener('click', () => {
-                image.src = '/img/subscribe/2.png';
-            });
-
-            document.getElementById('3').addEventListener('click', () => {
-                image.src = '/img/subscribe/3.png';
-            });
-
-            document.getElementById('4').addEventListener('click', () => {
-                image.src = '/img/subscribe/4.png';
-            });
-
-            document.getElementById('5').addEventListener('click', () => {
-                image.src = '/img/subscribe/5.png';
-            });
-
-            document.getElementById('6').addEventListener('click', () => {
-                image.src = '/img/subscribe/6.png';
-            });
-
-            document.getElementById('7').addEventListener('click', () => {
-                image.src = '/img/subscribe/7.png';
-            });
-
-            document.getElementById('8').addEventListener('click', () => {
-                image.src = '/img/subscribe/8.png';
-            });
-
-            document.getElementById('9').addEventListener('click', () => {
-                image.src = '/img/subscribe/9.png';
-            });
-
-            document.getElementById('10').addEventListener('click', () => {
-                image.src = '/img/subscribe/10.png';
-            });
-
-            document.getElementById('11').addEventListener('click', () => {
-                image.src = '/img/subscribe/11.png';
-            });
+            for(let x = 1; x <= 10; x++){
+                document.getElementById(x.toString()).addEventListener('click', () => {
+                    image.src = `/img/subscribe/${x.toString()}.png`;
+                });
+            }
         </script>
     </div>
 </body>
