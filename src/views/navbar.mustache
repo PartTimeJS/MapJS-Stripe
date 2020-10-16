@@ -47,16 +47,6 @@
                 <a class="nav-link" href="{{url}}" target="_blank"><i class="{{icon}}"></i>&nbsp;{{{name}}}</a>
             </li>
         {{/buttons_right}}
-        {{#username}}
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <i class="fas fa-user"></i>&nbsp;{{username}}
-                </a>
-                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
-                    <a class="dropdown-item" href="/logout" style="color: black;"><i class="fas fa-sign-out-alt"></i>&nbsp;{{title_logout}}</a>
-                </div>
-            </li>
-        {{/username}}
         {{/logged_in}}
         </ul>
     </div>
