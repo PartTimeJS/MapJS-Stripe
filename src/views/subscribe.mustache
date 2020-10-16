@@ -387,13 +387,14 @@
                 stripe.redirectToCheckout({
                     mode: 'subscription',
                     lineItems: [{
-                    price: recurring_id,
-                    quantity: 1
-                }],
+                        price: recurring_id,
+                        quantity: 1
+                    }],
                     successUrl: domain + `success?session_id={CHECKOUT_SESSION_ID}&plan_id=${recurring_id}&guild_id=${guild_id}&user_id=${user_id}`,
                     cancelUrl: domain + 'subscribe',
                     customerEmail: user_email,
                     clientReferenceId: reference_id,
+                    billingAddressCollection: 'required',
                 }).then(handleResult);
             });
             document.getElementById('onemonth').addEventListener('click', function (e) {
@@ -407,6 +408,7 @@
                     cancelUrl: domain + 'subscribe',
                     customerEmail: user_email,
                     clientReferenceId: reference_id,
+                    billingAddressCollection: 'required',
                 }).then(handleResult);
             });
             const image = document.querySelector('.left-column img');

@@ -47,11 +47,10 @@ router.get('/subscribe', async (req, res) => {
         req.session.amt2 = guild.onetime_cost;
         req.session.donor_role = guild.role;
         const customer = new StripeClient(req.session);
-
         const record = await customer.fetchRecordByUser();
         if(record){
             customer.setClientInfo(record);
-            if(customer.customerID && customer.subscriptionID){
+            if(customer.customerId && customer.subscriptionId){
                 res.redirect('/account');
                 return;
             } else {
@@ -143,7 +142,8 @@ router.get('/account', async (req, res) => {
                                     }
                                     user_record.cancellable = true;
                                     user_record.update_payment = true;
-                                    user_record.session_id = await customer.createSession();
+                                    let session = await customer.createSession();
+                                    user_record.session_id = session.id;
                                     req.session.subscriptions.push(user_record);
                                 } else {
                                     if(customer.customerObject.subscriptions.data[0]){
@@ -154,7 +154,8 @@ router.get('/account', async (req, res) => {
                                             user_record.end_date = 'PAST DUE';
                                             user_record.cancellable = false;
                                             user_record.update_payment = true;
-                                            req.session.session_id = await customer.createSession();
+                                            let session = await customer.createSession();
+                                            user_record.session_id = session.id;
                                             req.session.subscriptions.push(user_record);
                                         }
                                     }
@@ -197,22 +198,31 @@ router.get('/success', async function(req, res) {
         const user = new DiscordClient(record);
         user.donorRole = guild.role;
         if(!session.subscription || session.subscription === null){
-            customer.subscriptionId = req.session.onetime_id;
+            customer.planId = req.session.onetime_id;
             if(Number.isInteger(parseInt(record.subscription_id))){
                 //customer.insertStripeLog('Received Renewal Payment for One Month Access.');
                 user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'One Month Access Renewal! 📋', '');
                 customer.subscriptionId = moment.unix(record.subscription_id).add(1, 'M').unix();
+                customer.updateCustomerMetadata({
+                    onetime: true,
+                    expiration: customer.subscriptionId,
+                    plan_id: customer.planId
+                });
                 console.log('added a month to a subscription','previous:',record.subscription_id,'after:',customer.subscriptionId);
             } else {
                 //customer.insertStripeLog('Received Payment for One Month Access.');
                 user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'New One Month Access Payment! 📋', '');
                 customer.subscriptionId = moment().add(1, 'M').unix();
-                
             }
         } else {
             customer.subscriptionId = session.subscription;
             const subscription = await customer.retrieveSubscription();
             customer.planId = subscription.items.data[0].price.id;
+            customer.updateCustomerMetadata({
+                onetime: false,
+                subscription_id: customer.subscriptionId,
+                plan_id: customer.planId
+            });
             //customer.insertStripeLog('Created a New Monthly Subscription.');
             user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'New Subscription Created! 📋', '');
         }

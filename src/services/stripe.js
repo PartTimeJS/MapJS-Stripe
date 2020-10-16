@@ -34,10 +34,10 @@ class StripeClient {
         this.userId = userInfo.user_id;
         this.userName = userInfo.user_name;
         this.guildId = userInfo.guild_id;
-        this.guildName = userInfo.guild_name;
-        this.donorRole = userInfo.donor_role;
+        this.guildName = userInfo.guild_name ? userInfo.guild_name : this.guildName;
+        this.donorRole = userInfo.donor_role ? userInfo.donor_role : this.donorRole;
         this.email = userInfo.email;
-        this.mapUrl = userInfo.map_url;
+        this.mapUrl = userInfo.map_url ? userInfo.map_url : this.mapUrl;
         this.planId = userInfo.plan_id ? userInfo.plan_id : null;
         this.customerId = userInfo.customer_id ? userInfo.customer_id : null;
         this.subscriptionId = userInfo.subscription_id ? userInfo.subscription_id : null;
@@ -65,6 +65,7 @@ class StripeClient {
 
     createSession() {
         return new Promise((resolve) => {
+            let session_id;
             stripe.checkout.sessions.create({
                 payment_method_types: ['card'],
                 mode: 'setup',
@@ -77,17 +78,22 @@ class StripeClient {
                 },
                 success_url: this.mapUrl + `/cardupdate?session_id={CHECKOUT_SESSION_ID}&customer_id=${this.customerId}`,
                 cancel_url: this.mapUrl + '/account',
+                
+                billing_address_collection: 'required',
             },
             function (error, session) {
                 if (error) {
+                    console.error(error);
                     return resolve({
                         status: 'error',
                         error: error
                     });
                 }
-                this.sessionId = session.id;
-                return resolve(session);
+                session_id = session.id;
+                resolve(session);
             });
+            this.sessionId = session_id;
+            return;
         });
     }
 
@@ -136,6 +142,16 @@ class StripeClient {
         });
     }
 
+    retrieveLastCharge() {
+        return new Promise(async (resolve) => {
+            const charge = await stripe.charges.list({
+                customer: this.customerId,
+                limit: 1
+            });
+            return resolve(charge);
+        });
+    }
+
     updateCustomerName(customer_id, customer_name) {
         if(!customer_name){
             customer_name = (this.userName + ' - ' + this.userId);
@@ -176,6 +192,23 @@ class StripeClient {
         );
     }
 
+    updateCustomerMetadata(data) {
+        stripe.customers.update(
+            this.customerId, {
+                metadata: data
+            },
+            function (err, customer) {
+                if (err) {
+                    console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Updating Customer Description.`, err.message);
+                    return false;
+                } else {
+                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${this.userName}'s (${this.customerId}) Description has been Updated.`);
+                    return customer;
+                }
+            }
+        );
+    }
+
     updatePaymentMethod(cust_id, sub_id, payment_method) {
         stripe.customers.update(cust_id, {
             invoice_settings: {
@@ -187,6 +220,36 @@ class StripeClient {
                 default_payment_method: payment_method,
             });
         }
+    }
+
+    insertCustomerRecord() {
+        db.query(`
+            INSERT INTO ${config.stripe.db.customer_table} (
+                    user_id,
+                    user_name,
+                    guild_id,
+                    guild_name,
+                    plan_id,
+                    customer_id,
+                    subscription_id
+                ) 
+            VALUES (
+                    '${this.userId}', 
+                    '${this.userName}',
+                    '${this.guildId}',
+                    '${this.guildName}',
+                    '${this.planId}',
+                    '${this.customerId}',
+                    '${this.subscriptionId}'
+                )
+            ON DUPLICATE KEY UPDATE
+                    plan_id = '${this.planId}',
+                    customer_id = '${this.customerId}',
+                    subscription_id = '${this.subscriptionId}'
+        `).catch(err => {
+            console.error('Failed to execute query in customerDbRecord', '\r\n:Error:', err);
+        });
+        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Customer Record Inserted/Updated for ${this.userName} (${this.userId}).`);
     }
 
     insertDbRecord() {
@@ -469,10 +532,9 @@ class StripeClient {
             switch(true){
                 case !customer.subscriptions:
                 case !customer.subscriptions.data[0]:
-                case customer.subscriptions.data[0].status == 'past_due':
                     return resolve(false);
                 default:
-                    return resolve(true);
+                    return resolve(customer.subscriptions.data[0]);
             }
         });
     }
@@ -480,11 +542,8 @@ class StripeClient {
     identifyGuild(data) {
         return new Promise((resolve) => {
             let guild;
-            if(!data){
-                data = this;
-            }
-            let plan_id = data.plan_id ? data.plan_id : data.planId;
-            let guild_id = data.guild_id ? data.guild_id : data.guildId;
+            let plan_id = data ? data.plan_id : this.planId;
+            let guild_id = data ? data.guild_id : this.guildId;
             for (let d = 0, dlen = guilds.length; d < dlen; d++) {
                 if (guilds[d].name !== 'test') {
                     if (guild_id) {
