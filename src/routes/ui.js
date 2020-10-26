@@ -80,8 +80,6 @@ const handlePage = async (req, res) => {
     data.bodyClass = config.style === 'dark' ? 'theme-dark' : '';
     data.tableClass = config.style === 'dark' ? 'table-dark' : '';
 
-    data.max_pokemon_id = config.map.maxPokemonId;
-
     // Build available tile servers list
     const tileservers = getAvailableTileservers();
     data.available_tileservers_json = JSON.stringify(tileservers);
@@ -122,28 +120,33 @@ const handlePage = async (req, res) => {
     data.buttons_left = config.header.left;
     data.buttons_right = config.header.right;
 
-    if (req.session.logged_in) {
+    if (!config.discord.enabled || req.session.logged_in) {
         data.logged_in = true;
-        data.username = req.session.user_name;
-        const perms = req.session.perms;
-        data.hide_map = !perms.map;
-        data.hide_pokemon = !perms.pokemon;
-        data.hide_raids = !perms.raids;
-        data.hide_gyms = !perms.gyms;
-        data.hide_pokestops = !perms.pokestops;
-        data.hide_quests = !perms.quests;
-        data.hide_lures = !perms.lures;
-        data.hide_invasions = !perms.invasions;
-        data.hide_spawnpoints = !perms.spawnpoints;
-        data.hide_iv = !perms.iv;
-        data.hide_pvp = !perms.pvp;
-        data.hide_cells = !perms.s2cells;
-        data.hide_submission_cells = !perms.submissionCells;
-        data.hide_nests = !perms.nests;
-        data.hide_weather = !perms.weather;
-        data.hide_devices = !perms.devices;
-    } else {
-        res.redirect('/login');
+        data.username = req.session.username;
+        if (config.discord.enabled) {
+            if (req.session.valid) {
+                const perms = req.session.perms;
+                data.hide_map = !perms.map;
+                data.hide_pokemon = !perms.pokemon;
+                data.hide_raids = !perms.raids;
+                data.hide_gyms = !perms.gyms;
+                data.hide_pokestops = !perms.pokestops;
+                data.hide_quests = !perms.quests;
+                data.hide_lures = !perms.lures;
+                data.hide_invasions = !perms.invasions;
+                data.hide_spawnpoints = !perms.spawnpoints;
+                data.hide_iv = !perms.iv;
+                data.hide_pvp = !perms.pvp;
+                data.hide_cells = !perms.s2cells;
+                data.hide_submission_cells = !perms.submissionCells;
+                data.hide_nests = !perms.nests;
+                data.hide_weather = !perms.weather;
+                data.hide_devices = !perms.devices;
+            } else {
+                console.log(req.session.username, 'Not authorized to access map');
+                res.redirect('/login');
+            }
+        }
     }
 
     data.page_is_home = true;
