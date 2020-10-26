@@ -34,7 +34,6 @@ router.get('/subscribe', async (req, res) => {
     }
     if(guild){
         if(!req.session.email || !req.session.user_id || !req.session.guild_id){
-            console.log(req.session.email, req.session.user_id, req.session.guild_id);
             req.session.destroy();
             return res.redirect('/login');
         }
@@ -59,7 +58,6 @@ router.get('/subscribe', async (req, res) => {
                 return;
             }
         } else {
-            console.log('customer', customer);
             customer.insertDbRecord();
             res.redirect('/login');
             return;
@@ -320,9 +318,17 @@ router.post('/webhook', bodyParser.raw({
                     }
     
     
-                } else if (webhook.type === 'customer.subscription.cancelled'){
+                } else if (webhook.type === 'customer.subscription.deleted'){
                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Subscription Deleted 📉', '');
+                    user.sendDmEmbed('FF0000', 'Your PokeMap Subscription has Ended 😭', `Sorry to see you go! If you did't like the subscription model, we offer single month payments that are non-recurring. Visit ${guild.domain}/subscribe to check it out!`);
                     customer.deleteCustomer();
+                    customer.clearDbRecord();
+                    user.removed = await user.removeDonorRole();
+                    if(user.removed){
+                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                    }
+
+                } else if (webhook.type === 'customer.deleted'){
                     customer.clearDbRecord();
                     user.removed = await user.removeDonorRole();
                     if(user.removed){
