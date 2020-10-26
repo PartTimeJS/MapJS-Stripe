@@ -169,13 +169,10 @@ app.use(async (req, res, next) => {
         }
         const perms = req.session.perms;
         if (!perms.map) {
-            req.session.unauthorized_attempts = 0;
             if(!req.session.unauthorized_attempts){
                 req.session.unauthorized_attempts = 1;
             } else if(req.session.unauthorized_attempts > 10){
                 res.redirect('/subscribe');
-            } else if(req.session.unauthorized_attempts > 100){
-                //res.redirect('/warning');
             } else {
                 req.session.unauthorized_attempts++;
             }
