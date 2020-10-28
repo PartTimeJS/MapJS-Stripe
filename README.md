@@ -1,17 +1,3 @@
-# Stripe Addon Fork for MapJS
-
-Full Stripe Management Fork of MapJS. Master fork updates are pulled weekly. 
-
-Features:
-- Automated redirect to payment page if no subscription tied to a users discord account.
-- Account Page for user subscription management (WIP)
-- 3 Stage Customer Auditing for Data Accuracy
-- 3 Levels of logging. Console, Discord, and database logs that fulfill chargeback disputing requirements. 
-
-
-
-#Original MapJS ReadMe:
-
 [![Documentation Status](https://readthedocs.org/projects/mapjs/badge/?version=latest)](https://mapjs.readthedocs.io/en/latest/?badge=latest)
 ![Node.js CI](https://github.com/versx/MapJS/workflows/Node.js%20CI/badge.svg)
 ![Lint](https://github.com/versx/MapJS/workflows/Lint/badge.svg)  
@@ -30,6 +16,8 @@ NodeJS Map clone replacement for [RealDeviceMap](https://github.com/realdevicema
 - Discord authentication or no authentication
 - Pokemon form filtering
 - Raid Pokemon form filtering
+- Quest Pokemon form filtering
+- Mega energy quest filtering
 - Nests and nest filtering
 - Pokemon glow based on minimum IV
 - Refactored Global IV/Pokemon/Pokestop/Raid filtering
@@ -68,8 +56,9 @@ NodeJS Map clone replacement for [RealDeviceMap](https://github.com/realdevicema
 - [clburlison](https://github.com/clburlison)
 - [bschultz](https://github.com/bschultz)
 - [PartTimeJS](https://github.com/PartTimeJS)
-- [darthbutcher](https://github.com/darthbutcher)
 - [sabregreen](https://github.com/sabregreen)
+- [darthbutcher](https://github.com/darthbutcher)
+- [LordJavi](https://github.com/LordJavi)
 
 ## Credits
 
