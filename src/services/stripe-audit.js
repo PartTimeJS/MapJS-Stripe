@@ -169,8 +169,8 @@ function customersAudit(customers) {
                                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] One Month Access Expired for ${customer.userName} (${customer.userId}).`);
                                 user.sendDmEmbed('FF0000', 'Your One Month Access has Expired!', `Please visit ${guild.domain}/subscribe to renew or change to a subscription.`);
                                 user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'One Month Access Expired ⌛', '');
-                                // customer.clearDbRecord();
-                                // customer.deleted = customer.deleteCustomer();
+                                customer.clearDbRecord();
+                                customer.deleted = customer.deleteCustomer();
                                 if(customer.deleted){
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Expired Customer Deleted', '');
                                 }
@@ -179,6 +179,8 @@ function customersAudit(customers) {
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                 }
                             } else {
+                                console.log('expiration', expiration);
+                                console.log('times', moment().unix(), expiration - 97200, expiration - 75600);
                                 if(moment().unix() >= (expiration - 97200) && moment().unix() < (expiration - 75600)){
                                     user.sendDmEmbed('FF0000', 'Hello! Your One Month Access is expiring in ~24 hours!', `Please visit ${guild.domain}/account if you wish to renew! **If you would like to switch to a subscription**, wait until your expiration notice and then go to ${guild.domain}/subscribe.`);
                                 }

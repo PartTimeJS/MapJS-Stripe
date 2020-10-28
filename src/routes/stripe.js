@@ -163,7 +163,7 @@ router.get('/account', async (req, res) => {
                     }                                                                   
                 }
                 req.session.subscriptions = JSON.stringify(req.session.subscriptions);
-                const data =  Object.assign({}, defaultData, req.session, );
+                const data =  Object.assign({}, defaultData, req.session);
                 res.render('account', data);
                 return;
             }
