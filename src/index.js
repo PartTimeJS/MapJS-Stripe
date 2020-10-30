@@ -128,8 +128,6 @@ app.use((err, req, res, next) => {
 
 app.use('/api/stripe', stripeRoutes);
 
-const paths = ['/api/stripe/', '/subscribe', '/account', '/api/discord/', '/login'];
-
 // Login middleware
 app.use(async (req, res, next) => {
     const unix = moment().unix();
