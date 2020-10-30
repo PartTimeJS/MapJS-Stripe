@@ -128,16 +128,20 @@ app.use((err, req, res, next) => {
 
 app.use('/api/stripe', stripeRoutes);
 
+const paths = ['/api/stripe/', '/subscribe', '/account', '/api/discord/', '/login'];
+
 // Login middleware
 app.use(async (req, res, next) => {
     const unix = moment().unix();
     req.session.ip_address = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     req.session.map_url = 'https://' + req.get('host');
-    if (req.path.includes('/api/stripe/') || req.path === '/subscribe') {
-        return next();
-    }
-    if (req.path.includes('/api/discord/') || req.path === '/login') {
-        return next();
+    switch(true){
+        case req.path.includes('/api/stripe/'):
+        case req.path.includes('/api/discord/'):
+        case req.path === '/subscribe':
+        case req.path === '/login':
+        case req.path === '/account':
+            return next();
     }
     if (req.session.user_id && req.session.logged_in) {
         if(config.denylist.includes(req.session.user_id)){
@@ -153,8 +157,8 @@ app.use(async (req, res, next) => {
         }
         if(!req.session.perms || !req.session.updated || req.session.updated < (unix - 3600)){
             req.session.updated = unix;
-            user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully via Cookie.', '');
-            customer.insertAccessLog('Authenticated Successfully via Cookie Session.');
+            user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully via Session.', '');
+            customer.insertAccessLog('Authenticated Successfully via Session.');
             req.session.perms = await user.getPerms();
             if(!req.session.perms){
                 customer.insertAccessLog('Invalid Permissions Returned. User Session Destroyed.');
@@ -162,10 +166,6 @@ app.use(async (req, res, next) => {
                 res.redirect('/login');
                 return;
             }
-        }
-        if(config.open_map === true){
-            res.redirect('/login');
-            return;
         }
         const perms = req.session.perms;
         if (!perms.map) {
