@@ -88,15 +88,6 @@ app.use((req, res, next) => {
 // Set locale
 i18n.setLocale(config.locale);
 
-// Sessions middleware
-/*
-app.use(cookieSession({
-    name: 'session',
-    keys: [config.sessionSecret],
-    maxAge: 518400000,
-    store: sessionStore
-}));
-*/
 app.use(session({
     key: 'session',
     secret: config.sessionSecret,
