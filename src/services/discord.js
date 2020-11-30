@@ -13,14 +13,12 @@ const oauth = new DiscordOauth2();
 const Discord = require('discord.js');
 const client = new Discord.Client();
 
-if (config.discord.enabled) {
-    client.on('ready', async () => {
-        console.log(`[MapJS] [${getTime()}] [services/stripe.js] Logged in as ${client.user.tag}!`);
-        client.user.setPresence({ activity: { name: config.discord.status, type: 3 } });
-    });
+client.on('ready', async () => {
+    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Logged in as ${client.user.tag}!`);
+    client.user.setPresence({ activity: { name: config.discord.status, type: 3 } });
+});
 
-    client.login(config.discord.botToken);
-}
+client.login(config.discord.botToken);
 
 class DiscordClient {
 
