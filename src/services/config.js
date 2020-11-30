@@ -5,6 +5,7 @@ const uConfig = require('../configs/config.json');
 const dConfig = require('../configs/default.json');
 const sConfig = require('../configs/stripe.json');
 const target = {};
+
 /* 
  * deep Boolean (optional) If set, the merge becomes recursive (i.e. deep copy).
  * target Object The object to extend.
