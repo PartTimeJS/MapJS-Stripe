@@ -28,9 +28,16 @@
         "startZoom": 12,
         "minZoom": 10,
         "maxZoom": 18,
-        "minPvpCp": {
-            "great": 1400,
-            "ultra": 2400
+        "pvp": {
+            "maxRank": 100,
+            "minCpGreat": 1400,
+            "minCpUltra": 2400,
+            "megaStats": true,
+            "experimentalStats": false,
+            "l40stats": true,
+            "l41stats": false,
+            "l50stats": false,
+            "l51stats": false
         },
         "devicePathColor": "red",
         "nestPolygons": true,
@@ -63,7 +70,19 @@
             "iv": { "value": 100, "color": "red" },
             "pvp": { "value": 1, "color": "blue" },
             "both": { "color": "purple" }
-        }
+        },
+        "iconSizes": {
+            "gym": { "small": 20, "normal": 40, "large": 60, "huge": 80 },
+            "raid": { "small": 15, "normal": 30, "large": 50, "huge": 70 },
+            "pokestop": { "small": 15, "normal": 30, "large": 50, "huge": 70 },
+            "quest": { "small": 15, "normal": 30, "large": 50, "huge": 70 },
+            "invasion": { "small": 15, "normal": 30, "large": 50, "huge": 70 },
+            "spawnpoint": { "small": 0.5, "normal": 1, "large": 2, "huge": 3 },
+            "pokemon": { "small": 20, "normal": 40, "large": 60, "huge": 80 },
+            "nest": { "small": 20, "normal": 40, "large": 60, "huge": 80 },
+            "device": { "small": 15, "normal": 30, "large": 50, "huge": 70 }
+        },
+        "portalMods": { "oldColor": "blue", "newColor": "green" }
     },
     "header": {
         "left": [],
@@ -76,7 +95,9 @@
             "username": "user",
             "password": "pass123!",
             "database": "rdmdb",
-            "charset": "utf8mb4"
+            "charset": "utf8mb4",
+            "sessionTable": "sessions",
+            "useFor": ["pokemon", "pokestop", "gym", "spawnpoint", "device", "weather", "s2cell"]
         },
         "manualdb": {
             "host": "127.0.0.1",
@@ -84,7 +105,8 @@
             "username": "user",
             "password": "pass123!",
             "database": "manualdb",
-            "charset": "utf8mb4"
+            "charset": "utf8mb4",
+            "useFor": ["portal", "nest"]
         }
     },
     "discord": {
