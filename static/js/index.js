@@ -4224,7 +4224,7 @@ function getGymMarkerIcon (gym, ts) {
         raidSize = getIconSize('raid', raidLevel) + 10;
         raidIcon = `/img/egg/${raidLevel}.png`;
     } else {
-        raidSize = (getRaidSize('l' + raidLevel) / 1.55);
+        raidSize = (getIconSize('l' + raidLevel) / 1.55);
         raidIcon = `/img/shield/${gym.team_id}.png`;
     }
     if (raidSize > 0) {
