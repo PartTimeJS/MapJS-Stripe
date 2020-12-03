@@ -4195,11 +4195,11 @@ function getGymMarkerIcon (gym, ts) {
     let iconHtml = '';
     if (gym.in_battle) {
         // Gym Battle
-        gymSize = 55 + 10;; //Set Larger Size For Battle
+        gymSize = 55; //Set Larger Size For Battle
         iconHtml = `<div class="marker-image-holder"><img src="/img/battle/${gym.team_id}_${size}.png"/></div>`;
     } else {
         // Gym
-        gymSize = getIconSize('gym', gym.team_id) + 10;;
+        gymSize = getIconSize('gym', gym.team_id);
         iconHtml = `<div class="marker-image-holder"><img src="/img/gym/${gym.team_id}_${size}.png"/></div>`;
     }
     const iconAnchorY = gymSize * .849; //availableIconStyles[selectedIconStyle].gymAnchorY;
@@ -4208,28 +4208,28 @@ function getGymMarkerIcon (gym, ts) {
     // Raid overlay
     const raidLevel = gym.raid_level;
     let raidSize = 0;
-    let raidIcon, offsetY;
+    let raidIcon;
     if (gym.raid_battle_timestamp <= ts && gym.raid_end_timestamp >= ts && showRaids && parseInt(gym.raid_level) > 0) {
         if (gym.raid_pokemon_id !== 0 && gym.raid_pokemon_id !== null) {
             // Raid Boss
-            raidSize = getIconSize('raid', gym.raid_pokemon_id, gym.raid_pokemon_form) + 20;
+            raidSize = getIconSize('raid', gym.raid_pokemon_id, gym.raid_pokemon_form)
             raidIcon = `${availableIconStyles[selectedIconStyle].path}/${getPokemonIcon(gym.raid_pokemon_id, gym.raid_pokemon_form, gym.raid_pokemon_evolution, gym.raid_pokemon_gender, gym.raid_pokemon_costume)}.png`;
         } else {
             // Egg
-            raidSize = getIconSize('raid', raidLevel) + 10;
+            raidSize = getIconSize('raid', raidLevel)
             raidIcon = `/img/unknown_egg/${raidLevel}.png`;
         }
     } else if (gym.raid_end_timestamp >= ts && parseInt(gym.raid_level) > 0 && showRaids) {
         // Egg
-        raidSize = getIconSize('raid', raidLevel) + 10;
+        raidSize = getIconSize('raid', raidLevel)
         raidIcon = `/img/egg/${raidLevel}.png`;
     } else {
-        raidSize = (getIconSize('l' + raidLevel) / 1.55);
+        raidSize = getIconSize('raid', 1) / 1.55
         raidIcon = `/img/shield/${gym.team_id}.png`;
     }
     if (raidSize > 0) {
         //let offsetY = gymSize * (availableIconStyles[selectedIconStyle].raidOffsetY || .269) - raidSize;
-        offsetY = gymSize * .269 - raidSize;
+        let offsetY = gymSize * .269 - raidSize;
         iconHtml += `<div class="marker-image-holder top-overlay" style="width:${raidSize}px;height:${raidSize}px;left:50%;transform:translateX(-50%);top:${offsetY}px;"><img src="${raidIcon}"/></div>`;
         popupAnchorY += offsetY;
     }
