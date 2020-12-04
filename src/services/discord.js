@@ -91,7 +91,23 @@ class DiscordClient {
         return [];
     }
 
-    async getPerms() {
+    async discordEvents() {
+        client.config = this.config;
+        try {
+            fs.readdir(`${__dirname}/events/`, (err, files) => {
+                if (err) return this.log.error(err);
+                files.forEach((file) => {
+                    const event = require(`${__dirname}/events/${file}`); // eslint-disable-line global-require
+                    const eventName = file.split('.')[0];
+                    client.on(eventName, event.bind(null, client));
+                });
+            });
+        } catch (err) {
+            console.error('Failed to activate an event');
+        }
+    }
+
+    async getPerms(user) {
         const perms = {
             map: false,
             pokemon: false,
@@ -131,12 +147,10 @@ class DiscordClient {
                 break;
             }
         }
-
         if (blocked) {
             // User is in blocked guild
             return perms;
         }
-
         for (let i = 0; i < config.discord.allowedGuilds.length; i++) {
             // Check if user is in config guilds
             const guildId = config.discord.allowedGuilds[i];
