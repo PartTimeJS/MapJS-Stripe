@@ -3,6 +3,7 @@
 'use strict';
 
 const moment = require('moment');
+const fs = require('fs-extra');
 
 const config = require('../services/config.js');
 const discords = require('../configs/discords.json').discords;
@@ -107,7 +108,7 @@ class DiscordClient {
         }
     }
 
-    async getPerms(user) {
+    async getPerms() {
         const perms = {
             map: false,
             pokemon: false,
