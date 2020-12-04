@@ -447,8 +447,12 @@ function membersAudit(guild, members) {
                         }
                     }
                 } else {
-                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Record not found for ${customer.userName} (${customer.userId}). Inserting a Record.`, 'log_channel', guild.stripe_log_channel);
-                    user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'DB Record Not Found for Customer 🔎', '');
+                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Record not found for ${customer.userName} (${customer.userId}).`);
+                    user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'DB Record Not Found for user with Donor Role 🔎', '');
+                    user.removed = await user.removeDonorRole();
+                    if (user.removed) {
+                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
+                    }
                 }
                 if ((m + 1) === members.length){
                     return resolve();
