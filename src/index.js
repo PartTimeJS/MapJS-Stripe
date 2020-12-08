@@ -157,19 +157,25 @@ app.use(async (req, res, next) => {
         }
         const perms = req.session.perms;
         if (!perms.map) {
-            if(!req.session.unauthorized_attempts){
-                req.session.unauthorized_attempts = 1;
-            } else if(req.session.unauthorized_attempts > 10){
+            if(req.session.unauthorized_attempts > 10){
+                console.error(`[MapJS] [${getTime()}] Unauthorized Attempt limit reached. Destroying Session. ${req.session.user_name} (${req.session.user_id})`);
+                customer.insertAccessLog('Session Destroyed due to too many Unauthorized Login Attempts.');
+                req.session.destroy();
                 res.redirect('/subscribe');
+                return;
             } else {
-                req.session.unauthorized_attempts++;
+                if(!req.session.unauthorized_attempts){
+                    req.session.unauthorized_attempts = 1;
+                } else {
+                    req.session.unauthorized_attempts++;
+                }
+                req.session.save();
+                console.error(`[MapJS] [${getTime()}] [index.js] Non-Donor Login Attempt, ${req.session.user_name} (${req.session.user_id})`);
+                customer.insertAccessLog('Non-Donor Login Attempt.');
+                await user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Non-Donor Login Attempt.', '');
+                res.redirect('/subscribe');
+                return;
             }
-            req.session.save();
-            console.error(`[MapJS] [${getTime()}] [index.js] Non-Donor Login Attempt, ${req.session.user_name} (${req.session.user_id})`);
-            customer.insertAccessLog('Non-Donor Login Attempt.');
-            await user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Non-Donor Login Attempt.', '');
-            res.redirect('/subscribe');
-            return;
         }
         req.session.save();
         defaultData.hide_pokemon = !perms.pokemon;
