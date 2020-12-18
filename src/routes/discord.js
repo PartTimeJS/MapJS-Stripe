@@ -77,7 +77,6 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         user.setClientInfo(req.session);
         await user.guildMemberCheck();
         const customer = new StripeClient(req.session);
-        console.log(customer);
         customer.insertDbRecord();
         req.session.perms = await user.getPerms();
         const perms = req.session.perms;
