@@ -68,6 +68,7 @@
             const guild_id = '{{guild_id}}';
             const reference_id = user_name + ' - ' + user_id;
             const stripe = Stripe('{{key}}');
+            const onetime_id = '{{onetime_id}}';
             const processed = ('{{subscriptions}}').replace(/&quot;/g,'"');
             const subscriptions = JSON.parse(processed);
             var bodyString = '';
@@ -137,15 +138,15 @@
                 stripe.redirectToCheckout({
                     mode: 'payment',
                     lineItems: [{
-                    price: plan_id,
-                    quantity: 1,
+                        price: onetime_id,
+                        quantity: 1,
                     }],
-                    successUrl: domain + 'success?session_id={CHECKOUT_SESSION_ID}',
-                    cancelUrl: domain + 'account',
-                    customer: customer_id,
+                    successUrl: domain + `renew?session_id={CHECKOUT_SESSION_ID}&plan_id=${onetime_id}&guild_id=${guild_id}&user_id=${user_id}`,
+                    cancelUrl: domain + 'subscribe',
+                    customerEmail: user_email,
                     clientReferenceId: reference_id,
+                    billingAddressCollection: 'required',
                 }).then(handleResult);
-            }
 
             var modal = document.getElementById(window.location.search.replace('?', '').split('&')[0]);
             if(modal){
