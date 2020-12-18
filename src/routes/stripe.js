@@ -190,8 +190,6 @@ router.get('/success', async function(req, res) {
         customer.customerId = session.customer;
         req.session.customer_id = session.customer;
         customer.updateCustomerName(session.customer, session.client_reference_id);
-        console.log('/success - session', session);
-        console.log('/success - req.session', req.session);
         const record = await customer.fetchRecordByUser();
         const user = new DiscordClient(record);
         user.donorRole = guild.role;
@@ -206,7 +204,7 @@ router.get('/success', async function(req, res) {
                     expiration: customer.subscriptionId,
                     plan_id: customer.planId
                 });
-                console.log('added a month to a subscription','previous:',record.subscription_id,'after:',customer.subscriptionId);
+                user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'One Month Access Extended! 📋', '');
             } else {
                 //customer.insertStripeLog('Received Payment for One Month Access.');
                 user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'New One Month Access Payment! 📋', '');
@@ -225,14 +223,58 @@ router.get('/success', async function(req, res) {
             user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'New Subscription Created! 📋', '');
         }
         req.session.subscription_id = customer.subscriptionId;
-        console.log('/success - StripeClient', customer);
         customer.updateDbRecord();
-        console.log('/success - DiscordClient', user);
         user.assigned = await user.assignDonorRole();
         if(user.assigned){
             user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
         }
         user.sendMessage(guild.welcome_channel, config.donor_welcome_content.replace('%usertag%', '<@' + req.query.user_id + '>'));
+    } else {
+        console.error(`[MapJS] [${getTime()}] [routes/stripe.js] No Session retrieved after purchase.`, req.session);
+    }
+    res.redirect('/');
+    return;
+});
+
+router.get('/renew', async function(req, res) {
+    req.session.updated = 0;
+    req.session.save();
+    const customer = new StripeClient(req.session);
+    const guild = await customer.identifyGuild();
+    const session = await customer.retrieveSession(req.query.session_id);
+    if(session){
+        customer.customerId = session.customer;
+        req.session.customer_id = session.customer;
+        customer.updateCustomerName(session.customer, session.client_reference_id);
+        const record = await customer.fetchRecordByUser();
+        const oldCustomer = new StripeClient(record);
+        oldCustomer.deleteCustomer();
+        const user = new DiscordClient(record);
+        user.donorRole = guild.role;
+        if(!session.subscription || session.subscription === null){
+            customer.planId = req.session.onetime_id;
+            if(Number.isInteger(parseInt(record.subscription_id))){
+                //customer.insertStripeLog('Received Renewal Payment for One Month Access.');
+                user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'One Month Access Renewal! 📋', '');
+                customer.subscriptionId = moment.unix(record.subscription_id).add(1, 'M').unix();
+                customer.updateCustomerMetadata({
+                    onetime: true,
+                    expiration: customer.subscriptionId,
+                    plan_id: customer.planId
+                });
+                user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'One Month Access Extended! 📋', '');
+            } else {
+                //customer.insertStripeLog('Received Payment for One Month Access.');
+                user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'New One Month Access Payment! 📋', '');
+                customer.subscriptionId = moment().add(1, 'M').unix();
+            }
+        }
+        req.session.subscription_id = customer.subscriptionId;
+        customer.updateDbRecord();
+        user.assigned = await user.assignDonorRole();
+        if(user.assigned){
+            user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
+        }
     } else {
         console.error(`[MapJS] [${getTime()}] [routes/stripe.js] No Session retrieved after purchase.`, req.session);
     }
@@ -299,7 +341,7 @@ router.post('/webhook', bodyParser.raw({
     try{
         setTimeout(async () => {
             webhook = webhook.body;
-            console.log(webhook);
+            //console.log(webhook);
             const customer = new StripeClient({ customer_id: webhook.data.object.customer });
             const record = await customer.fetchRecordByCustomer();
             if(record){
@@ -358,7 +400,6 @@ router.post('/webhook', bodyParser.raw({
                     }
                 }
             }
-
             res.sendStatus(200);
             return;
         }, 5000);
