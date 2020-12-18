@@ -193,6 +193,8 @@ class StripeClient {
     }
 
     updateCustomerMetadata(data) {
+        let userName = this.userName;
+        let customerId = this.customerId;
         stripe.customers.update(
             this.customerId, {
                 metadata: data
@@ -202,7 +204,7 @@ class StripeClient {
                     console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Updating Customer Description.`, err.message);
                     return false;
                 } else {
-                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${this.userName}'s (${this.customerId}) Description has been Updated.`);
+                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${userName}'s (${customerId}) Description has been Updated.`);
                     return customer;
                 }
             }
