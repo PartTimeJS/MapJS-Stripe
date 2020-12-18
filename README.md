@@ -42,13 +42,19 @@ NodeJS Map clone replacement for [RealDeviceMap](https://github.com/realdevicema
 - Zoom zoom zoom, fast
 - Much more...
 
-## Installation
+## Stripe Configuration
+- Configs located in /src/configs. Fill out discord.json.example and stripe.json.example.
+- Stripe page customization can be done in /src/views for account and subscribe.
+- Added pages: /account /subscribe
+
+
+## MapJS Installation
 
 [Quick Install Guide](https://wwm.readthedocs.io/projects/mapjs/en/latest/install/quick-start/)
 
-## [Documentation](https://wwm.readthedocs.io/projects/mapjs/en/latest/)
+## [MapJS Documentation](https://wwm.readthedocs.io/projects/mapjs/en/latest/)
 
-## Contributors
+## MapJS Contributors
 
 - [versx](https://github.com/versx)
 - [Mygod](https://github.com/Mygod)
@@ -60,7 +66,7 @@ NodeJS Map clone replacement for [RealDeviceMap](https://github.com/realdevicema
 - [darthbutcher](https://github.com/darthbutcher)
 - [LordJavi](https://github.com/LordJavi)
 
-## Credits
+## MapJS Credits
 
 - [RealDeviceMap](https://github.com/realdevicemap/realdevicemap)
 - [PMSF](https://github.com/pmsf/pmsf)
