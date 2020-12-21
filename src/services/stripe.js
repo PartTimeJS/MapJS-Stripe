@@ -580,18 +580,19 @@ class StripeClient {
 
 const customer_table = `
     CREATE TABLE IF NOT EXISTS ${config.stripe.db.customer_table}(
-        user_id varchar(40) NOT NULL,
-        user_name varchar(40) NOT NULL,
-        guild_id varchar(40) NOT NULL,
-        guild_name varchar(50) NOT NULL,
-        plan_id varchar(50),
-        customer_id varchar(50),
-        subscription_id varchar(50),
-        email varchar(40),
-        access_token varchar(60),
-        refresh_token varchar(60),
-        last_login varchar(20),
-        PRIMARY KEY (user_id, guild_id) USING BTREE
+        user_id varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+        user_name varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+        guild_id varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+        guild_name varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+        plan_id varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+        customer_id varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+        subscription_id varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+        email varchar(40) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+        access_token varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+        refresh_token varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+        last_login varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+        PRIMARY KEY (user_id,guild_id) USING BTREE,
+        UNIQUE KEY uix_userCustomer (user_id,customer_id) USING BTREE
     )`;
 db.query(customer_table).catch(err => {
     console.error('Failed to execute query:', customer_table, '\r\n:Error:', err);
@@ -599,14 +600,14 @@ db.query(customer_table).catch(err => {
 
 const auth_log_table = `
     CREATE TABLE IF NOT EXISTS ${config.stripe.db.auth_log_table}(
-        time varchar(40) NOT NULL,
-        ip_address varchar(30) NOT NULL,
-        user_id varchar(40) NOT NULL,
-        email varchar(50) NOT NULL,
-        log varchar(255) NOT NULL,
-        domain varchar(50) NOT NULL,
-        timestamp bigint NOT NULL,
-        PRIMARY KEY (timestamp, user_id) USING BTREE
+        time varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+        ip_address varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+        user_id varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+        email varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+        log varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+        domain varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+        timestamp bigint(20) NOT NULL,
+        PRIMARY KEY (timestamp,user_id) USING BTREE
     )`;
 db.query(auth_log_table).catch(err => {
     console.error('Failed to execute query:', auth_log_table, '\r\n:Error:', err);
