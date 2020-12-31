@@ -137,9 +137,9 @@ router.get('/account', async (req, res) => {
                                         user_record.end_date = false;
                                         user_record.next_payment = moment.unix(customer.customerObject.subscriptions.data[0].current_period_end).format('ddd, MMM Do');
                                         user_record.reactivatable = false;
+                                        user_record.update_payment = true;
+                                        user_record.cancellable = true;
                                     }
-                                    user_record.cancellable = true;
-                                    user_record.update_payment = true;
                                     let session = await customer.createSession();
                                     user_record.session_id = session.id;
                                     req.session.subscriptions.push(user_record);
@@ -285,14 +285,24 @@ router.get('/renew', async function(req, res) {
 
 router.get('/cardupdate', async function(req, res) {
     req.session.perms = false;
+    req.session.save();
+    console.log('1');
+    if(!req.query){
+        res.redirect('/account');
+        return;
+    }
+    console.log('2');
     const customer = new StripeClient(req.query);
     const guild = await customer.identifyGuild();
     const session = await customer.retrieveSession();
+    console.log('3');
     customer.customerId = session.customer;
     const record = await customer.fetchRecordByCustomer();
     const user = new DiscordClient(record);
+    console.log('4');
     const intent = await customer.retrieveSetupIntent(session.setup_intent);
     await customer.updatePaymentMethod(intent.customer, record.plan_id, intent.payment_method);
+    console.log('5');
     user.assigned = await user.assignDonorRole();
     if(user.assigned){
         user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
@@ -310,25 +320,25 @@ router.get('/cancel', async function(req, res) {
     const guild = await customer.identifyGuild();
     const cancelled = await customer.cancelSubscription();
     if(cancelled){
-        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Subscription Cancelled 📝', '');
+        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Subscription Cancelled 📝', '');
     } else {
-        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Error Cancelling Subscription', '');
+        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Error Cancelling Subscription', '');
     }
     res.redirect('/account');
     return;
 });
 
 router.get('/reactivate', async function(req, res) {
-    const customer = new StripeClient(req.query);
-    const record = await customer.fetchRecordByCustomer();
+    const customer = new StripeClient(req.session);
+    const record = await customer.fetchRecordByUser(); 
     const user = new DiscordClient(record);
     customer.setClientInfo(record);
     const guild = await customer.identifyGuild();
     const reactivated = await customer.reactivateSubscription();
     if(reactivated){
-        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Subscription Cancelled 📝', '');
+        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Subscription Re-Activated 📝', '');
     } else {
-        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Error Cancelling Subscription', '');
+        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Error Cancelling Subscription', '');
     }
     res.redirect('/account');
     return;
@@ -380,23 +390,25 @@ router.post('/webhook', bodyParser.raw({
     
                 } else if (webhook.type === 'invoice.payment_failed'){
                     const charge = await customer.retrieveCharge(webhook.data.object.charge);
-                    if(webhook.data.object.attempt_count){
-                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Payment Failed ⛔', 'Reason: ' + charge.failure_message + '\nAttempt Count: **' + webhook.data.object.attempt_count + '** of **5**');
-                    } else {
-                        user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Payment Failed ⛔', 'Reason: ' + charge.failure_message);
-                    }
-                    user.removed = await user.removeDonorRole();
-                    if(user.removed){
-                        user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Removed! 📝', '');
-                    }
-                    const message = 'Uh Oh! Your Donor Payment failed to ' + guild.name + '. \n' +
-                                    'Reason From Bank: `' + charge.failure_message + '` \n' +
-                                    'This was attempt: ' + webhook.data.object.attempt_count + '/5. \n\n' +
-                                    'Please visit ' + guild.domain + '/account to update or change your payment information. \n';
-                    if (webhook.data.object.attempt_count && webhook.data.object.attempt_count != 5) {
-                        user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', message);
-                    } else {
-                        user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', message);
+                    if(webhook.data.object.attempt_count < 5){
+                        if(webhook.data.object.attempt_count){
+                            user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Payment Failed ⛔', 'Reason: ' + charge.failure_message + '\nAttempt Count: **' + webhook.data.object.attempt_count + '** of **5**');
+                        } else {
+                            user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Payment Failed ⛔', 'Reason: ' + charge.failure_message);
+                        }
+                        user.removed = await user.removeDonorRole();
+                        if(user.removed){
+                            user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Removed! 📝', '');
+                        }
+                        const message = 'Uh Oh! Your Donor Payment failed to ' + guild.name + '. \n' +
+                                        'Reason From Bank: `' + charge.failure_message + '` \n' +
+                                        'This was attempt: ' + webhook.data.object.attempt_count + '/5. \n\n' +
+                                        'Please visit ' + guild.domain + '/account to update or change your payment information. \n';
+                        if (webhook.data.object.attempt_count && webhook.data.object.attempt_count != 5) {
+                            user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', message);
+                        } else {
+                            user.sendDmEmbed('FF0000', 'Subscription Payment Failed! ⛔', message);
+                        }
                     }
                 }
             }

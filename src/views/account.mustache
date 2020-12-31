@@ -72,7 +72,7 @@
             const processed = ('{{subscriptions}}').replace(/&quot;/g,'"');
             const subscriptions = JSON.parse(processed);
             var bodyString = '';
-            const domain = location.href.replace(/[^/]*$/, '');
+            const domain = window.location.origin;
             if(subscriptions.length > 0){
                 $('.accountTable thead').html('<tr><th>Subscription:</th><th>Member Since:</th><th>Next Payment:</th><th>End Date:</th><th>Renew/Update:</th><th>Cancel:</th></tr>');
                 subscriptions.forEach((sub,index) => {
@@ -127,11 +127,11 @@
             }
 
             function cancel(customer_id) {
-                window.location.href = `cancel?customer_id=${customer_id}`;
+                window.location.href = `/api/stripe/cancel?customer_id=${customer_id}`;
             }
 
             function reactivate(customer_id) {
-                window.location.href = `reactivate?customer_id=${customer_id}`;
+                window.location.href = `/api/stripe/reactivate?customer_id=${customer_id}`;
             }
 
             function charge(plan_id, customer_id){
@@ -141,25 +141,27 @@
                         price: onetime_id,
                         quantity: 1,
                     }],
-                    successUrl: domain + `renew?session_id={CHECKOUT_SESSION_ID}&plan_id=${onetime_id}&guild_id=${guild_id}&user_id=${user_id}`,
-                    cancelUrl: domain + 'subscribe',
+                    successUrl: domain + `/api/stripe/renew?session_id={CHECKOUT_SESSION_ID}&plan_id=${onetime_id}&guild_id=${guild_id}&user_id=${user_id}`,
+                    cancelUrl: domain + '/subscribe?failed=renew_failed',
                     customerEmail: user_email,
                     clientReferenceId: reference_id,
                     billingAddressCollection: 'required',
                 }).then(handleResult);
+            }
 
             var modal = document.getElementById(window.location.search.replace('?', '').split('&')[0]);
             if(modal){
                 modal.style.display = 'block';
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 15000);
+                var span = document.getElementsByClassName('close')[0];
+                span.onclick = function() { modal.style.display = 'none'; };
+                window.onclick = function(event) {
+                    if(event.target == modal) { modal.style.display = 'none'; }
+                };
             }
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 15000);
-            var span = document.getElementsByClassName('close')[0];
-            span.onclick = function() { modal.style.display = 'none'; };
-            window.onclick = function(event) {
-                if(event.target == modal) { modal.style.display = 'none'; }
-            };
+            
         </script>
 
         <div class="modal">

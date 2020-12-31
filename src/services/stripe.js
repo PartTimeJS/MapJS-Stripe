@@ -76,7 +76,7 @@ class StripeClient {
                         subscription_id: this.subscriptionId
                     },
                 },
-                success_url: this.mapUrl + `/cardupdate?session_id={CHECKOUT_SESSION_ID}&customer_id=${this.customerId}`,
+                success_url: this.mapUrl + `/api/stripe/cardupdate?session_id={CHECKOUT_SESSION_ID}&customer_id=${this.customerId}`,
                 cancel_url: this.mapUrl + '/account',
                 
                 billing_address_collection: 'required',
