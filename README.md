@@ -10,6 +10,10 @@
 
 NodeJS Map clone replacement for [RealDeviceMap](https://github.com/realdevicemap/realdevicemap)
 
+## Requirements & Prerequisites
+- [NodeJS v12](https://nodejs.org/en/download/)
+- [Chuck](https://github.com/WatWowMap/Chuck) or [RealDeviceMap](https://github.com/realdevicemap/realdevicemap) existing database
+
 ## Features
 
 - Everything from RealDeviceMap UI Map
@@ -42,31 +46,27 @@ NodeJS Map clone replacement for [RealDeviceMap](https://github.com/realdevicema
 - Zoom zoom zoom, fast
 - Much more...
 
-## Stripe Configuration
-- Configs located in /src/configs. Fill out discord.json.example and stripe.json.example.
-- Stripe page customization can be done in /src/views for account and subscribe.
-- Added pages: /account /subscribe
-
-
-## MapJS Installation
+## Installation
 
 [Quick Install Guide](https://wwm.readthedocs.io/projects/mapjs/en/latest/install/quick-start/)
 
-## [MapJS Documentation](https://wwm.readthedocs.io/projects/mapjs/en/latest/)
+## [Documentation](https://wwm.readthedocs.io/projects/mapjs/en/latest/)
 
-## MapJS Contributors
+## Contributors
 
 - [versx](https://github.com/versx)
 - [Mygod](https://github.com/Mygod)
-- [sketchysocks](https://github.com/sketchysocks)
+- [TurtIeSocks](https://github.com/TurtIeSocks)
 - [clburlison](https://github.com/clburlison)
 - [bschultz](https://github.com/bschultz)
 - [PartTimeJS](https://github.com/PartTimeJS)
 - [sabregreen](https://github.com/sabregreen)
-- [darthbutcher](https://github.com/darthbutcher)
+- [ArcanoxDragon](https://github.com/ArcanoxDragon)
+- [DarthButcher](https://github.com/darthbutcher)
+- [Andrew Cameron](https://github.com/amcameron)
 - [LordJavi](https://github.com/LordJavi)
 
-## MapJS Credits
+## Credits
 
 - [RealDeviceMap](https://github.com/realdevicemap/realdevicemap)
 - [PMSF](https://github.com/pmsf/pmsf)

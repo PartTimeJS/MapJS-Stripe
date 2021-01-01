@@ -102,6 +102,7 @@ function customersAudit(customers) {
                         switch(true){
                             case record.user_id !== customer.userId:
                                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] Customer user_id (${stripeCustomer.name}) does not match the db user_id ${(record.user_name + ' - ' + record.user_id)}.`);
+                                console.log('0 ID Check', (record.user_id !== customer.userId), record.user_id, customer.userId);
                                 customer.updateCustomerName(); break;
                             case !record.plan_id:
                             case !record.subscription_id:
@@ -109,6 +110,7 @@ function customersAudit(customers) {
                             case record.subscription_id !== customer.subscriptionId:
                                 customer.updateDbRecord(); break;
                             case (stripeCustomer.name != (record.user_name + ' - ' + record.user_id)):
+                                console.log('1 Name Check', (stripeCustomer.name != (record.user_name + ' - ' + record.user_id)), stripeCustomer.name, record.user_name + ' - ' + record.user_id);
                                 customer.updateCustomerName(); break;
                         }
                         const validSubscription = await customer.validateSubscription();
@@ -162,6 +164,7 @@ function customersAudit(customers) {
                                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] Found Plan ID Discrepency for ${customer.userName} (${record.user_id}).`);
                                     customer.updateDbRecord(); break;
                                 case (stripeCustomer.name != (record.user_name + ' - ' + record.user_id)):
+                                    console.log('2 Name Check', (stripeCustomer.name != (record.user_name + ' - ' + record.user_id)), stripeCustomer.name, record.user_name + ' - ' + record.user_id);
                                     customer.updateCustomerName(); break;
                             }
                             const expiration = parseInt(record.subscription_id);
@@ -179,8 +182,6 @@ function customersAudit(customers) {
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                 }
                             } else {
-                                console.log('expiration', expiration);
-                                console.log('times', moment().unix(), expiration - 97200, expiration - 75600);
                                 if(moment().unix() >= (expiration - 97200) && moment().unix() < (expiration - 75600)){
                                     user.sendDmEmbed('FF0000', 'Hello! Your One Month Access is expiring in ~24 hours!', `Please visit ${guild.domain}/account if you wish to renew! **If you would like to switch to a subscription**, wait until your expiration notice and then go to ${guild.domain}/subscribe.`);
                                 }
