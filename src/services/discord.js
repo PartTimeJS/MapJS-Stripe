@@ -335,14 +335,19 @@ class DiscordClient {
 
     removeDonorRole() {
         return new Promise((resolve) => {
-            const member = client.guilds.cache.get(this.guildId.toString()).members.cache.get(this.userId.toString());
-            if (!member) {
-                return resolve(false);
-            } else if (member.roles.cache.has(this.donorRole.toString())) {
-                member.roles.remove(this.donorRole);
-                console.log(`[MapJS] [${getTime()}] [services/discord.js] Removed donor role from ${this.userName} (${this.userId}).`);
-                return resolve(true);
-            } else {
+            try {
+                const member = client.guilds.cache.get(this.guildId.toString()).members.cache.get(this.userId.toString());
+                if (!member) {
+                    return resolve(false);
+                } else if (member.roles.cache.has(this.donorRole.toString())) {
+                    member.roles.remove(this.donorRole);
+                    console.log(`[MapJS] [${getTime()}] [services/discord.js] Removed donor role from ${this.userName} (${this.userId}).`);
+                    return resolve(true);
+                } else {
+                    return resolve(false);
+                }
+            } catch (e) {
+                console.error(this);
                 return resolve(false);
             }
         });

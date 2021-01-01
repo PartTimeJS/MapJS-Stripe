@@ -53,7 +53,7 @@ const clearOtherSessions = async (userId, currentSessionId) => {
     `;
     let args = [userId, currentSessionId];
     let results = await db.query(sql, args);
-    console.log('[Session] Clear Result:', results);
+    console.log('[MapJS] [Session] Clear Result:', `Affected Rows: ${results.affectedRows}`, `Changed Rows: ${results.changedRows}`);
 };
 
 module.exports = {
