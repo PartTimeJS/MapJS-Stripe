@@ -366,6 +366,9 @@ $(function () {
         selectedTileserver = this.value;
         store('tileserver', this.value);
         map.removeLayer(tileLayer);
+        $.each(cellMarkers, function (index, cell) {
+            map.removeLayer(cell.marker);
+        });
 
         let scale = '';
         if (L.Browser.retina) {
@@ -3275,13 +3278,8 @@ function getGymPopupContent (gym) {
     if (isRaid) {
         let hasRaidBoss = gym.raid_pokemon_id !== 0 && gym.raid_pokemon_id !== null;
         let pokemonName;
-        if (hasRaidBoss && isRaidBattle) {
-            if (gym.raid_pokemon_form !== 0 && gym.raid_pokemon_form !== null) {
-                pokemonName = getFormName(gym.raid_pokemon_form) + ' ' + getPokemonName(gym.raid_pokemon_id);
-            } else {
-                pokemonName = getPokemonName(gym.raid_pokemon_id);
-            }
-            pokemonName += ' ' + getGenderIcon(gym.raid_pokemon_gender);
+        if (hasRaidBoss) {
+            pokemonName = getPokemonName(gym.raid_pokemon_id) + ' ' + getGenderIcon(gym.raid_pokemon_gender);
         } else if (isRaidBattle) {
             pokemonName = 'Unknown Raid Boss';
         } else {
@@ -3292,7 +3290,7 @@ function getGymPopupContent (gym) {
         '<div class="row" style="margin:auto;">' + // START 1ST ROW
             '<div class="col-4">' + // START 1ST COL
                 '<div class="row pokemon-popup-image-holder">';
-        if (hasRaidBoss && isRaidBattle) {
+        if (hasRaidBoss) {
             content += `<img src="${availableIconStyles[selectedIconStyle].path}/${pokemonIcon}.png">`;
         } else {
             content += `<img src="/img/egg/${gym.raid_level}.png">`;
@@ -3300,7 +3298,7 @@ function getGymPopupContent (gym) {
         content +=
                 '</div>' + // END POKEMON ROW
                 '<div class="row" style="margin:auto;">';
-        if (hasRaidBoss && isRaidBattle) {
+        if (hasRaidBoss) {
             const pkmn = masterfile.pokemon[gym.raid_pokemon_id];
             if (pkmn !== undefined && pkmn !== null) {
                 const types = pkmn.types;
@@ -3321,7 +3319,7 @@ function getGymPopupContent (gym) {
             '</div>' + // END 1ST COLUMN
             '<div class="col-8 text-nowrap">' + // START 2ND COL
                 '<h7><b>' + pokemonName + '</b></h7><br>';
-        if (hasRaidBoss && isRaidBattle) {
+        if (hasRaidBoss) {
             if (gym.raid_pokemon_evolution) {
                 content += '<b>Evolution:</b> ' + getEvolutionName(gym.raid_pokemon_evolution) + '<br>';
             }
@@ -3767,6 +3765,14 @@ function getCellMarker (cell, ts) {
     return polygon;
 }
 
+function getCellStyleColors (selectedTileserver) {
+    let colorObject = 'black'
+    if (selectedTileserver === 'Dark Matter' || selectedTileserver === 'Satellite') {
+        colorObject = 'red'
+    }
+    return colorObject
+}
+
 function getCellStyle (cell, ts) {
     const ago = ts - cell.updated;
     let value;
@@ -3787,9 +3793,9 @@ function getSubmissionPlacementCellMarker (cell, ts) {
 
 function getSubmissionPlacementCellStyle (cell, ts) {
     if (cell.blocked) {
-        return { fillColor: 'black', color: 'black', opacity: 0.75, fillOpacity: 0.25, weight: 0.1 };
+        return { fillColor: 'black', color: getCellStyleColors(selectedTileserver), opacity: 0.75, fillOpacity: 0.25, weight: 0.35 };
     } else {
-        return { fillColor: 'green', color: 'black', opacity: 0.75, fillOpacity: 0.0, weight: 0.1 };
+        return { fillColor: 'green', color: getCellStyleColors(selectedTileserver), opacity: 0.75, fillOpacity: 0.0, weight: 0.35 };
     }
 }
 
@@ -3829,9 +3835,9 @@ function getSubmissionTypeCellStyle (cell, ts) {
     } else if ((cell.count === 4 && cell.count_gyms < 2) || (cell.count === 18 && cell.count_gyms < 3)) {
         return { fillColor: 'orange', color: 'red', opacity: 0.75, fillOpacity: 0.5, weight: 0.75 };
     } else if (cell.count >= 20) {
-        return { fillColor: 'black', color: 'black', opacity: 0.75, fillOpacity: 0.25, weight: 0.75 };
+        return { fillColor: 'black', color: getCellStyleColors(selectedTileserver), opacity: 0.75, fillOpacity: 0.25, weight: 0.8 };
     } else {
-        return { fillColor: 'blue', color: 'black', opacity: 0.75, fillOpacity: 0.0, weight: 0.75 };
+        return { fillColor: 'blue', color: getCellStyleColors(selectedTileserver), opacity: 0.75, fillOpacity: 0.0, weight: 0.8 };
     }
 }
 
@@ -4224,7 +4230,7 @@ function getGymMarkerIcon (gym, ts) {
         raidSize = getIconSize('raid', raidLevel)
         raidIcon = `/img/egg/${raidLevel}.png`;
     } else {
-        raidSize = getIconSize('raid', 1) / 1.55
+        raidSize = getIconSize('raid', 1) / 1.55;
         raidIcon = `/img/shield/${gym.team_id}.png`;
     }
     if (raidSize > 0) {
