@@ -168,7 +168,7 @@ class StripeClient {
                     console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Updating Customer Name.`, err.message);
                     return false;
                 } else {
-                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer.id}'s Name has been Updated.`);
+                    console.log(`[MapJS] [${getTime()}] [services/stripe.js] Stripe Customer ${customer.id}'s Name has been Updated to ${customer_name}.`);
                     return customer;
                 }
             }
@@ -211,17 +211,32 @@ class StripeClient {
         );
     }
 
-    updatePaymentMethod(cust_id, sub_id, payment_method) {
+    async updatePaymentMethod(cust_id, sub_id, pay_meth) {
         stripe.customers.update(cust_id, {
             invoice_settings: {
-                default_payment_method: payment_method,
+                default_payment_method: pay_meth,
             },
         });
         if (sub_id) {
             stripe.subscriptions.update(sub_id, {
-                default_payment_method: payment_method,
+                default_payment_method: pay_meth,
             });
         }
+        const invoices = await stripe.invoices.list({
+            customer: cust_id,
+            limit: 1,
+        });
+        stripe.invoices.update(invoices.data[0].id, {
+                default_payment_method: pay_meth
+            },
+            function(err) {
+                if(err){
+                    console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Updating Customer Invoice.`, err);
+                } else {
+                    stripe.invoices.pay(invoices.data[0].id);
+                }
+            }
+        );
     }
 
     insertCustomerRecord() {
