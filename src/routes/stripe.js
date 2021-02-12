@@ -291,18 +291,14 @@ router.get('/cardupdate', async function(req, res) {
         res.redirect('/account');
         return;
     }
-    console.log('2');
     const customer = new StripeClient(req.query);
     const guild = await customer.identifyGuild();
     const session = await customer.retrieveSession();
-    console.log('3');
     customer.customerId = session.customer;
     const record = await customer.fetchRecordByCustomer();
     const user = new DiscordClient(record);
-    console.log('4');
     const intent = await customer.retrieveSetupIntent(session.setup_intent);
     await customer.updatePaymentMethod(intent.customer, record.plan_id, intent.payment_method);
-    console.log('5');
     user.assigned = await user.assignDonorRole();
     if(user.assigned){
         user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
