@@ -111,7 +111,7 @@ function customersAudit(customers) {
                                 customer.updateDbRecord(); break;
                             case (stripeCustomer.name != (record.user_name + ' - ' + record.user_id)):
                                 console.log('1 Name Check', (stripeCustomer.name != (record.user_name + ' - ' + record.user_id)), stripeCustomer.name, record.user_name + ' - ' + record.user_id);
-                                customer.updateCustomerName(); break;
+                                customer.updateCustomerName(null, record.user_name + ' - ' + record.user_id); break;
                         }
                         const validSubscription = await customer.validateSubscription();
                         if(validSubscription){
