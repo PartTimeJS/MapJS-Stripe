@@ -4,11 +4,9 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const moment = require('moment');
-
 const DiscordClient = require('../services/discord.js');
 const StripeClient = require('../services/stripe.js');
 //const utils = require('../services/utils.js');
-
 const defaultData = require('../data/default.js');
 const config = require('../services/config.js');
 const discords = require('../configs/discords.json').discords;
@@ -50,7 +48,6 @@ router.get('/login', (req, res) => {
     }
 });
 
-
 router.get('/callback', catchAsyncErrors(async (req, res) => {
     if (!req.query.code) {
         throw new Error('NoCodeProvided');
@@ -60,6 +57,7 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
     const headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
     };
+    
     axios.post('https://discord.com/api/oauth2/token', data, {
         headers: headers
     }).then(async (response) => {
@@ -71,35 +69,102 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         req.session.user_id = data.id;
         req.session.email = data.email;
         req.session.user_name = data.username;
-        if(config.denylist.includes(req.session.user_id)){
-            return res.render('blocked', defaultData);
-        }
         user.setClientInfo(req.session);
         await user.guildMemberCheck();
         const customer = new StripeClient(req.session);
         customer.insertDbRecord();
         req.session.perms = await user.getPerms();
         const perms = req.session.perms;
-        if(perms.map){
-            req.session.valid = true;
-            req.session.save();
+        const valid = perms.map !== false;
+        req.session.save();
+
+        const ip = req.headers['cf-connecting-ip'] || ((req.headers['x-forwarded-for'] || '').split(', ')[0]) || (req.connection.remoteAddress || req.connection.localAddress).match('[0-9]+.[0-9].+[0-9]+.[0-9]+$')[0];
+        const url = `http://ip-api.com/json/${ip}?fields=66846719&lang=${config.locale || 'en'}`;
+        const geoResponse = await axios.get(url);
+        const geo = geoResponse.data;
+        const embed = {
+            color: 0xFF0000,
+            title: 'Failure',
+            author: {
+                name: `${user.username}#${user.discriminator}`,
+                icon_url: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`,
+            },
+            description: 'User Failed Authentication',
+            thumbnail: {
+                url: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`,
+            },
+            fields: [
+                {
+                    name: 'Discord Id',
+                    value: `<@${user.id}>`,
+                },
+                { 
+                    name: 'Client Info',  
+                    value: req.headers['user-agent'] 
+                },
+                { 
+                    name: 'Ip Address',
+                    value: `||${ip}||` 
+                },
+                {
+                    name: 'Geo Lookup',
+                    value: `${geo['city']}, ${geo['regionName']}, ${geo['zip']}` 
+                },
+                {
+                    name: 'Google Map',
+                    value: `https://www.google.com/maps?q=${geo['lat']},${geo['lon']}` 
+                },
+                {
+                    name: 'Network Provider',
+                    value: `${geo['isp']}, ${geo['as']}`
+                },
+                {
+                    name: 'Mobile',
+                    value: `${geo['mobile']}`,
+                    inline: true
+                },
+                {
+                    name: 'Proxy',
+                    value: `${geo['proxy']}`,
+                    inline: true
+                },
+                {
+                    name: 'Hosting',
+                    value: `${geo['hosting']}`,
+                    inline: true
+                },
+            ],
+            timestamp: new Date(),
+        };
+        let redirect;
+        if (valid) {
+            console.log(user.id, 'Authenticated successfully.');
+            embed.title = 'Success';
+            embed.description = 'User Successfully Authenticated';
+            embed.color = 0x00FF00;
+            redirect = '/';
             console.log(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Authenticated Successfully via Oauth.`);
             customer.insertAccessLog('Authenticated Successfully using Discord Oauth.');
-            user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully via Oauth.', '');
-            res.redirect('/');
+        } else if (config.denylist.includes(req.session.user_id) || blocked) {
+            // User is in blocked Discord server(s)
+            embed.title = 'Blocked';
+            embed.description = 'User Blocked Due to ' + blocked;
+            embed.color = 0xFF0000;
+            redirect = '/blocked';
+            console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Blocked Login Attempt.`);
+            customer.insertAccessLog('Blocked Login Attempt.');
         } else {
             console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Authentication Attempt via Oauth.`);
+            redirect = '/subscribe';
             customer.insertAccessLog('Authentication Attempt usign Discord Oauth.');
-            user.sendChannelEmbed(req.session.access_log_channel, 'Authentication Attempt via Oauth.', '');
-            res.redirect('/subscribe');
         }
-        return;
+        await DiscordClient.sendMessage(config.discord.logChannelId, {embed: embed});
+        return res.redirect(redirect);
     }).catch(error => {
         console.error(error);
         //throw new Error('UnableToFetchToken');
     });
 }));
-
 
 function getTime (type) {
     switch (type) {
@@ -113,6 +178,5 @@ function getTime (type) {
             return moment().format('hh:mmA');
     }
 }
-
 
 module.exports = router;
