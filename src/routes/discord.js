@@ -158,7 +158,7 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
             redirect = '/subscribe';
             customer.insertAccessLog('Authentication Attempt usign Discord Oauth.');
         }
-        await DiscordClient.sendMessage(config.discord.logChannelId, {embed: embed});
+        await user.sendMessage(config.discord.logChannelId, {embed: embed});
         return res.redirect(redirect);
     }).catch(error => {
         console.error(error);

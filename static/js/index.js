@@ -1807,10 +1807,10 @@ function initMap () {
         }
     });
     map.addControl(new CustomControlFilters());
-
+	
     const CustomControlSettings = L.Control.extend({
         options: {
-            position: 'bottomleft'
+            position: 'topleft'
         },
         onAdd: function (map) {
             const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
@@ -3479,6 +3479,7 @@ function getPokestopPopupContent (pokestop) {
 
 const getPossibleInvasionRewards = pokestop => {
   const item = gruntTypes[pokestop.grunt_type];
+  if (!item) return '';
   const encounterNum = { first: '#1', second: '#2', third: '#3' };
   const rewardPercent = item.type === 'Giovanni' ? { third: '100%' }
     : item.second_reward ? { first: '85%', second: '15%' }
@@ -4332,6 +4333,9 @@ function getPokestopMarkerIcon (pokestop, ts) {
             // XP
             rewardString = 'i-2';
             iconUrl = `/img/item/-2.png`;
+            if (info && info.amount > 1) {
+                iconHtml = `<div class="amount-holder"><div>${info.amount}</div></div>`;
+            }
         } else if (id === 2) {
             // Item
             const item = info && info.item_id;
@@ -4514,7 +4518,7 @@ function getGymMarkerIcon (gym, ts) {
     } else if (gym.raid_end_timestamp >= ts && parseInt(gym.raid_level) > 0 && showRaids) {
         // Egg
         raidSize = getIconSize('raid', raidLevel)
-        raidIcon = `/img/egg/${raidLevel}.png`;
+        raidIcon = `/img/egg/${raidLevel}.png`;    
     } else {
         raidSize = getIconSize('raid', 1) / 1.55;
         raidIcon = `/img/shield/${gym.team_id}.png`;
@@ -7480,6 +7484,7 @@ function loadFilterSettings (e) {
         $('#table-filter-nest').DataTable().rows().invalidate('data').draw(false);
         $('#table-filter-portal').DataTable().rows().invalidate('data').draw(false);
         $('#table-filter-device').DataTable().rows().invalidate('data').draw(false);
+        $('#table-filter-weather').DataTable().rows().invalidate('data').draw(false);
     };
     reader.readAsText(file);
 }
