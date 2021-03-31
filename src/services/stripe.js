@@ -20,6 +20,7 @@ class StripeClient {
         this.donorRole = user.donor_role;
         this.email = user.email;
         this.mapUrl = user.map_url;
+        this.userAgent = user.user_agent;
         this.planId = user.plan_id ? user.plan_id : null;
         this.customerId = user.customer_id ? user.customer_id : null;
         this.subscriptionId = user.subscription_id ? user.subscription_id : null;
@@ -37,6 +38,7 @@ class StripeClient {
         this.guildName = userInfo.guild_name ? userInfo.guild_name : this.guildName;
         this.donorRole = userInfo.donor_role ? userInfo.donor_role : this.donorRole;
         this.email = userInfo.email;
+        this.userAgent = userInfo.user_agent;
         this.mapUrl = userInfo.map_url ? userInfo.map_url : this.mapUrl;
         this.planId = userInfo.plan_id ? userInfo.plan_id : null;
         this.customerId = userInfo.customer_id ? userInfo.customer_id : null;
@@ -308,6 +310,7 @@ class StripeClient {
                     email,
                     log,
                     domain,
+                    device,
                     timestamp
                 ) 
             VALUES (
@@ -317,6 +320,7 @@ class StripeClient {
                     '${this.email}',
                     '${log}',
                     '${this.mapUrl}',
+                    '${this.userAgent}',
                     '${moment().unix()}'
                 );
         `).catch(err => {

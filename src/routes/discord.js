@@ -61,6 +61,9 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
     axios.post('https://discord.com/api/oauth2/token', data, {
         headers: headers
     }).then(async (response) => {
+        const unix = moment().unix();
+        req.session.updated = unix;
+        req.session.user_agent = req.headers['user-agent'];
         const user = new DiscordClient({ access_token: response.data.access_token });
         const data = await user.getUser();
         req.session.access_token = response.data.access_token;
@@ -76,43 +79,32 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         req.session.perms = await user.getPerms();
         const perms = req.session.perms;
         const valid = perms.map !== false;
-        req.session.save();
-
-        const ip = req.headers['cf-connecting-ip'] || ((req.headers['x-forwarded-for'] || '').split(', ')[0]) || (req.connection.remoteAddress || req.connection.localAddress).match('[0-9]+.[0-9].+[0-9]+.[0-9]+$')[0];
         const url = `http://ip-api.com/json/${ip}?fields=66846719&lang=${config.locale || 'en'}`;
         const geoResponse = await axios.get(url);
         const geo = geoResponse.data;
+        req.session.client_info = req.headers['user-agent'];
+        req.session.provider = `${geo['isp']}, ${geo['as']}`;
+        req.session.mobile = `${geo['mobile']}`;
+        req.session.save();
         const embed = {
             color: 0xFF0000,
-            title: 'Failure',
+            title: 'User Failed Authentication',
             author: {
-                name: `${user.username}#${user.discriminator}`,
-                icon_url: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`,
-            },
-            description: 'User Failed Authentication',
-            thumbnail: {
-                url: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`,
+                name: `${req.session.user_name} (${req.session.user_id})`,
+                icon_url: `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png`,
             },
             fields: [
-                {
-                    name: 'Discord Id',
-                    value: `<@${user.id}>`,
-                },
                 { 
                     name: 'Client Info',  
                     value: req.headers['user-agent'] 
                 },
                 { 
                     name: 'Ip Address',
-                    value: `||${ip}||` 
+                    value: `${req.session.ip_address}` 
                 },
                 {
                     name: 'Geo Lookup',
                     value: `${geo['city']}, ${geo['regionName']}, ${geo['zip']}` 
-                },
-                {
-                    name: 'Google Map',
-                    value: `https://www.google.com/maps?q=${geo['lat']},${geo['lon']}` 
                 },
                 {
                     name: 'Network Provider',
@@ -134,31 +126,35 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
                     inline: true
                 },
             ],
-            timestamp: new Date(),
+            footer: {
+                text: getTime('full')
+            }
         };
         let redirect;
         if (valid) {
-            console.log(user.id, 'Authenticated successfully.');
-            embed.title = 'Success';
-            embed.description = 'User Successfully Authenticated';
+            embed.title = 'User Successfully Authenticated';
             embed.color = 0x00FF00;
             redirect = '/';
             console.log(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Authenticated Successfully via Oauth.`);
             customer.insertAccessLog('Authenticated Successfully using Discord Oauth.');
-        } else if (config.denylist.includes(req.session.user_id) || blocked) {
-            // User is in blocked Discord server(s)
-            embed.title = 'Blocked';
-            embed.description = 'User Blocked Due to ' + blocked;
+        } else if (config.denylist.includes(req.session.user_id)) {
+            embed.title = 'Blocked Login Attempt';
             embed.color = 0xFF0000;
             redirect = '/blocked';
             console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Blocked Login Attempt.`);
             customer.insertAccessLog('Blocked Login Attempt.');
-        } else {
+        } else if (config.suspendedlist.includes(req.session.user_id)) {
+            embed.title = 'Suspended Login Attempt';
+            embed.color = 0xFF0000;
+            redirect = '/blocked';
+            console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Suspended Login Attempt.`);
+            customer.insertAccessLog('Suspended Login Attempt.');
+        }else {
             console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Authentication Attempt via Oauth.`);
             redirect = '/subscribe';
             customer.insertAccessLog('Authentication Attempt usign Discord Oauth.');
         }
-        await user.sendMessage(config.discord.logChannelId, {embed: embed});
+        await user.sendMessage(req.session.access_log_channel, {embed: embed}).catch(console.error);
         return res.redirect(redirect);
     }).catch(error => {
         console.error(error);

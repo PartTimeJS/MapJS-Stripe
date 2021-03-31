@@ -121,7 +121,7 @@ app.use('/api/stripe', stripeRoutes);
 // Login middleware
 app.use(async (req, res, next) => {
     const unix = moment().unix();
-    req.session.ip_address = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    req.session.ip_address = req.headers['cf-connecting-ip'] || ((req.headers['x-forwarded-for'] || '').split(', ')[0]) || (req.socket.remoteAddress || req.socket.localAddress).match('[0-9]+.[0-9].+[0-9]+.[0-9]+$')[0];
     req.session.map_url = 'https://' + req.get('host');
     switch(true){
         case req.path.includes('/api/stripe/'):
@@ -137,15 +137,18 @@ app.use(async (req, res, next) => {
         }
         const user = new DiscordClient(req.session);
         const customer = new StripeClient(req.session);
-        if (!(await isValidSession(req.session.user_id))) {
-            console.debug(`[MapJS] [${getTime()}] [index.js] Detected multiple sessions for ${user.userName} (${user.userId}). Clearing old ones...`);
-            customer.insertAccessLog('Multiple Sessions Detected. Cleared Older Sessions.');
-            user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Cleared Excess Sessions.', '');
-            await clearOtherSessions(req.session.user_id, req.sessionID);
+        if(!req.session.sesionChecked || req.session.sesionChecked < (unix - 60)){
+            req.session.sesionChecked = unix;
+            if (!(await isValidSession(req.session.user_id))) {
+                console.debug(`[MapJS] [${getTime()}] [index.js] Detected multiple sessions for ${user.userName} (${user.userId}). Clearing old ones...`);
+                customer.insertAccessLog('Multiple Sessions Detected. Cleared Older Sessions.');
+                user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', `Cleared Excess Sessions.\n${req.session.ip_address}`, '');
+                await clearOtherSessions(req.session.user_id, req.sessionID);
+            }
         }
-        if(!req.session.perms || !req.session.updated || req.session.updated < (unix - 3600)){
+        if(!req.session.perms || !req.session.updated || req.session.updated < (unix - 1800)){
             req.session.updated = unix;
-            user.sendChannelEmbed(req.session.access_log_channel, '00FF00', 'Authenticated Successfully via Session.', '');
+            user.sendChannelEmbed(req.session.access_log_channel, '00FF00', `Authenticated Successfully via Session.\n${req.session.ip_address}`, '');
             customer.insertAccessLog('Authenticated Successfully via Session.');
             req.session.perms = await user.getPerms();
             if(!req.session.perms){
@@ -157,7 +160,7 @@ app.use(async (req, res, next) => {
         }
         const perms = req.session.perms;
         if (!perms.map) {
-            if(req.session.unauthorized_attempts > 10){
+            if(req.session.unauthorized_attempts > 5){
                 console.error(`[MapJS] [${getTime()}] Unauthorized Attempt limit reached. Destroying Session. ${req.session.user_name} (${req.session.user_id})`);
                 customer.insertAccessLog('Session Destroyed due to too many Unauthorized Login Attempts.');
                 req.session.destroy();

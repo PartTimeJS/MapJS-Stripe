@@ -31,6 +31,7 @@ class DiscordClient {
         this.guildId = user.guild_id;
         this.guildName = user.guild_name;
         this.donorRole = user.donor_role;
+        this.userAgent = user.user_agent;
         this.mapUrl = user.map_url;
         this.email = user.email;
         return;
@@ -42,6 +43,7 @@ class DiscordClient {
         this.guildId = userInfo.guild_id;
         this.guildName = userInfo.guild_name;
         this.donorRole = userInfo.donor_role;
+        this.userAgent = userInfo.user_agent;
         this.mapUrl = userInfo.map_url;
         this.email = userInfo.email;
         return;
