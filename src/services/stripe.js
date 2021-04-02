@@ -49,7 +49,7 @@ class StripeClient {
         return;
     }
 
-    setGuildInfo(guildInfo){
+    setGuildInfo(guildInfo) {
         this.guildId = !guildInfo.id ? this.guildId : guildInfo.id;
         this.guildName = !guildInfo.name ? this.guildName : guildInfo.name;
         this.donorRole = guildInfo.role;
@@ -100,7 +100,7 @@ class StripeClient {
     }
 
     retrieveSession(session_id) {
-        if(!session_id){
+        if (!session_id) {
             session_id = this.sessionId;
         }
         return new Promise(async function(resolve) {
@@ -155,10 +155,10 @@ class StripeClient {
     }
 
     updateCustomerName(customer_id, customer_name) {
-        if(!customer_name){
+        if (!customer_name) {
             customer_name = (this.userName + ' - ' + this.userId);
         }
-        if(!customer_id){
+        if (!customer_id) {
             customer_id = this.customerId;
         }
         stripe.customers.update(
@@ -232,7 +232,7 @@ class StripeClient {
                 default_payment_method: pay_meth
             },
             function(err) {
-                if(err){
+                if (err) {
                     console.error(`[MapJS] [${getTime()}] [services/stripe.js] Error Updating Customer Invoice.`, err);
                 } else {
                     stripe.invoices.pay(invoices.data[0].id);
@@ -522,7 +522,7 @@ class StripeClient {
 
     validateCustomer() {
         return new Promise(async (resolve) => {
-            if(this.customerId === 'Lifetime'){
+            if (this.customerId === 'Lifetime') {
                 return resolve(true);
             } else {
                 if (!this.customerId || this.customerId === null || this.customerId === 'null') {
@@ -536,7 +536,7 @@ class StripeClient {
                         case customer.deleted == true:
                             return resolve(false);
                         default:
-                            if(customer.subscriptions.data[0]){
+                            if (customer.subscriptions.data[0]) {
                                 this.subscriptionId = customer.subscriptions.data[0].id;
                             }
                             return resolve(true);
@@ -550,7 +550,7 @@ class StripeClient {
         return new Promise(async (resolve) => {
             let customer = await this.fetchCustomer();
             this.customerObject = customer;
-            switch(true){
+            switch(true) {
                 case !customer.subscriptions:
                 case !customer.subscriptions.data[0]:
                     return resolve(false);
@@ -584,7 +584,7 @@ class StripeClient {
                     }
                 }
             }
-            if(guild){
+            if (guild) {
                 this.donorRole = guild.role;
                 this.guildId = guild.id;
                 this.guildName = guild.name;

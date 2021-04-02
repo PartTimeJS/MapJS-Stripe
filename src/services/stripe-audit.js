@@ -80,7 +80,7 @@ function customersAudit(customers) {
             const stripeCustomer = customers[c];
             setTimeout(async () => {
                 const name = stripeCustomer.name ? stripeCustomer.name : stripeCustomer.description;
-                if(!name){
+                if (!name) {
                     console.error('No Name for Customer', stripeCustomer);
                 }
                 const customer = new StripeClient({
@@ -95,11 +95,11 @@ function customersAudit(customers) {
                     const user = new DiscordClient(record);
                     if (stripeCustomer.subscriptions.data[0] || !Number.isInteger(parseInt(record.subscription_id))) {
                         const guild = await customer.identifyGuild();
-                        if(guild.id !== record.guild_id){
+                        if (guild.id !== record.guild_id) {
                             user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', `Incorrect Guild ID found for ${customer.customerId} 🔎`, '');
                         }
                         user.setGuildInfo(guild);
-                        switch(true){
+                        switch(true) {
                             case record.user_id !== customer.userId:
                                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] Customer user_id (${stripeCustomer.name}) does not match the db user_id ${(record.user_name + ' - ' + record.user_id)}.`);
                                 console.log('0 ID Check', (record.user_id !== customer.userId), record.user_id, customer.userId);
@@ -114,8 +114,8 @@ function customersAudit(customers) {
                                 customer.updateCustomerName(null, record.user_name + ' - ' + record.user_id); break;
                         }
                         const validSubscription = await customer.validateSubscription();
-                        if(validSubscription){
-                            if(validSubscription.status == 'past_due'){
+                        if (validSubscription) {
+                            if (validSubscription.status == 'past_due') {
                                 user.removed = await user.removeDonorRole();
                                 if (user.removed) {
                                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${record.user_id}) found with a Past Due Subscription. Removed Donor Role.`);
@@ -133,7 +133,7 @@ function customersAudit(customers) {
                         } else {
                             // customer.clearDbRecord();
                             // customer.deleted = customer.deleteCustomer();
-                            if(customer.deleted){
+                            if (customer.deleted) {
                                 user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Customer with Invalid Subscription Deleted', '');
                             }
                             console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${customer.userId}) has an invalid Subscription.`);
@@ -145,13 +145,13 @@ function customersAudit(customers) {
                         }
                     } else {
                         const last_charge = await customer.retrieveLastCharge();
-                        if(last_charge.data[0]){
+                        if (last_charge.data[0]) {
                             const guild = await identifyGuild({ guild_name: last_charge.data[0].description});
                             user.setGuildInfo(guild);
                             customer.guildId = guild.id;
                             customer.guildName = guild.name;
                             customer.planId = guild.onetime_id;
-                            switch(true){
+                            switch(true) {
                                 case record.user_id !== customer.userId:
                                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] Customer user_id (${stripeCustomer.name}) does not match the db user_id ${(customer.userName + ' - ' + record.user_id)}.`);
                                     customer.clearDbRecord(); break;
@@ -168,13 +168,13 @@ function customersAudit(customers) {
                                     customer.updateCustomerName(); break;
                             }
                             const expiration = parseInt(record.subscription_id);
-                            if(expiration < moment().unix()){
+                            if (expiration < moment().unix()) {
                                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] One Month Access Expired for ${customer.userName} (${customer.userId}).`);
                                 user.sendDmEmbed('FF0000', 'Your One Month Access has Expired!', `Please visit ${guild.domain}/subscribe to renew or change to a subscription.`);
                                 user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'One Month Access Expired ⌛', '');
                                 customer.clearDbRecord();
                                 customer.deleted = customer.deleteCustomer();
-                                if(customer.deleted){
+                                if (customer.deleted) {
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Expired Customer Deleted', '');
                                 }
                                 user.removed = await user.removeDonorRole();
@@ -182,7 +182,7 @@ function customersAudit(customers) {
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                 }
                             } else {
-                                if(moment().unix() >= (expiration - 97200) && moment().unix() < (expiration - 75600)){
+                                if (moment().unix() >= (expiration - 97200) && moment().unix() < (expiration - 75600)) {
                                     user.sendDmEmbed('FF0000', 'Hello! Your One Month Access is expiring in ~24 hours!', `Please visit ${guild.domain}/account if you wish to renew! **If you would like to switch to a subscription**, wait until your expiration notice and then go to ${guild.domain}/subscribe.`);
                                 }
                                 user.assigned = await user.assignDonorRole();
@@ -198,7 +198,7 @@ function customersAudit(customers) {
                             console.log(`[MapJS] [${getTime()}] [services/stripe.js] Invalid Customer found for ${customer.userName} (${record.user_id}) .`);
                             // customer.clearDbRecord();
                             // customer.deleted = customer.deleteCustomer();
-                            if(customer.deleted){
+                            if (customer.deleted) {
                                 user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Expired Customer Deleted', '');
                             }
                             user.removed = await user.removeDonorRole();
@@ -214,7 +214,7 @@ function customersAudit(customers) {
                         customer.insertCustomerRecord();
                     } else {
                         const last_charge = await customer.retrieveLastCharge();
-                        if(last_charge.data[0]){
+                        if (last_charge.data[0]) {
                             const guild = await identifyGuild({ guild_name: last_charge.data[0].description});
                             customer.guildId = guild.id;
                             customer.guildName = guild.name;
@@ -249,13 +249,13 @@ function databaseAudit() {
                 const guild = await identifyGuild({
                     guild_id: record.guild_id
                 });
-                if(guild){
+                if (guild) {
                     const user = new DiscordClient(record);
                     user.setGuildInfo(guild);
                     const member = await user.checkIfMember(record.guild_id);
                     const customer = new StripeClient(record);
                     if (member) {
-                        if(record.customer_id == 'Lifetime'){
+                        if (record.customer_id == 'Lifetime') {
                             user.assigned = await user.assignDonorRole();
                             if (user.assigned) {
                                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) found without a Donor Role and assigned Role.`);
@@ -264,14 +264,14 @@ function databaseAudit() {
                             }
                         } else {
                             const validCustomer = await customer.validateCustomer();
-                            if(validCustomer){
-                                if(Number.isInteger(parseInt(record.subscription_id))){
+                            if (validCustomer) {
+                                if (Number.isInteger(parseInt(record.subscription_id))) {
                                     const expiration = parseInt(record.subscription_id);
-                                    if(expiration < moment().unix()){
+                                    if (expiration < moment().unix()) {
                                         console.error('EXPIRED ONETIME');
                                         customer.clearDbRecord();
                                         customer.deleted = customer.deleteCustomer();
-                                        if(customer.deleted){
+                                        if (customer.deleted) {
                                             user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Expired Customer Deleted', '');
                                         }
                                         user.removed = await user.removeDonorRole();
@@ -290,8 +290,8 @@ function databaseAudit() {
                                     }
                                 } else {
                                     const validSubscription = await customer.validateSubscription();
-                                    if(validSubscription){
-                                        if(validSubscription.status == 'past_due'){
+                                    if (validSubscription) {
+                                        if (validSubscription.status == 'past_due') {
                                             user.removed = await user.removeDonorRole();
                                             if (user.removed) {
                                                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${record.user_id}) found with a Past Due Subscription. Removed Donor Role.`);
@@ -322,7 +322,7 @@ function databaseAudit() {
                                         console.error(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${customer.userId}) has an invalid Subscription.`, customer);
                                         // customer.clearDbRecord();
                                         // customer.deleted = customer.deleteCustomer();
-                                        if(customer.deleted){
+                                        if (customer.deleted) {
                                             user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Customer without a Subscription Deleted', '');
                                         }
                                         user.removed = await user.removeDonorRole();
@@ -344,7 +344,7 @@ function databaseAudit() {
                         }
                     } else {
                         const validCustomer = await customer.validateCustomer();
-                        if(!validCustomer){
+                        if (!validCustomer) {
                             console.error(`[MapJS] [${getTime()}] [services/stripe.js] Invalid Customer Record found in the Database for ${record.user_name} (${record.user_id}).`);
                             customer.clearDbRecord();
                         }
@@ -364,7 +364,7 @@ function databaseAudit() {
 
 function guildsAudit(guild_id) {
     return new Promise(async (resolve) => {
-        if(!guild_id){
+        if (!guild_id) {
             console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Guild Audit. (3 of 3)`);
         }
         for (let d = 0, dlen = guilds.length; d < dlen; d++) {
@@ -407,7 +407,7 @@ function membersAudit(guild, members) {
                 });
                 const record = await customer.fetchRecordByUser();
                 if (record) {
-                    if(record.plan_id !== 'Lifetime'){
+                    if (record.plan_id !== 'Lifetime') {
                         record.donor_role = guild.role;
                         customer.setClientInfo(record);
                         user.setClientInfo(record);
@@ -455,7 +455,7 @@ function membersAudit(guild, members) {
                         user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                     }
                 }
-                if ((m + 1) === members.length){
+                if ((m + 1) === members.length) {
                     return resolve();
                 }
             }, 1000 * m);

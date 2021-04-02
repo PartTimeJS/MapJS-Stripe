@@ -123,6 +123,7 @@ body {
     margin-bottom: 5px;
     width: 65px;
 }
+
 .cancelButton:hover {
 	background:linear-gradient(to bottom, #f24437 5%, #c62d1f 100%);
 	background-color:#f24437;

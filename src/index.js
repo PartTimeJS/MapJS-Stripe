@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const axios = require('axios');
 const compression = require('compression');
 const express = require('express');
 const moment = require('moment');
@@ -18,7 +19,7 @@ const apiRoutes = require('./routes/api.js');
 const discordRoutes = require('./routes/discord.js');
 const stripeRoutes = require('./routes/stripe.js');
 const uiRoutes = require('./routes/ui.js');
-const { sessionStore, isValidSession, clearOtherSessions } = require('./services/session-store.js');
+const { sessionStore, isValidSession } = require('./services/session-store.js');
 
 // TODO: Check sessions table and parse json
 
@@ -123,7 +124,7 @@ app.use(async (req, res, next) => {
     const unix = moment().unix();
     req.session.ip_address = req.headers['cf-connecting-ip'] || ((req.headers['x-forwarded-for'] || '').split(', ')[0]) || (req.socket.remoteAddress || req.socket.localAddress).match('[0-9]+.[0-9].+[0-9]+.[0-9]+$')[0];
     req.session.map_url = 'https://' + req.get('host');
-    switch(true){
+    switch(true) {
         case req.path.includes('/api/stripe/'):
         case req.path.includes('/api/discord/'):
         case req.path === '/subscribe':
@@ -132,55 +133,118 @@ app.use(async (req, res, next) => {
             return next();
     }
     if (req.session.user_id && req.session.logged_in) {
-        if(config.denylist.includes(req.session.user_id)){
-            return res.render('blocked', defaultData);
+        if (config.denylist.includes(req.session.user_id)) {
+            if (req.path == "/api/get_data") {
+                return res.sendStatus(403);
+            } else {
+                return res.render('blocked', defaultData);
+            }
         }
         const user = new DiscordClient(req.session);
         const customer = new StripeClient(req.session);
-        if(!req.session.sesionChecked || req.session.sesionChecked < (unix - 60)){
+        if (!req.session.geo) {
+            let url = `http://ip-api.com/json/${req.session.ip_address}?fields=66846719&lang=${config.locale || 'en'}`;
+            let geoResponse = await axios.get(url);
+            req.session.geo = geoResponse.data;
+        }
+        const embed = {
+            color: 0xFF0000,
+            title: '',
+            author: {
+                name: `${req.session.user_name} (${req.session.user_id})`,
+                icon_url: `https://cdn.discordapp.com/avatars/${req.session.user_id}/${req.session.avatar}.png`,
+            },
+            fields: [
+                { 
+                    name: 'Client Info',  
+                    value: req.headers['user-agent'] 
+                },
+                { 
+                    name: 'Ip Address',
+                    value: `${req.session.ip_address}` 
+                },
+                {
+                    name: 'Geo Lookup',
+                    value: `${req.session.geo['city']}, ${req.session.geo['regionName']}, ${req.session.geo['zip']}` 
+                },
+                {
+                    name: 'Network Provider',
+                    value: `${req.session.geo['isp']}, ${req.session.geo['as']}`
+                },
+                {
+                    name: 'Mobile',
+                    value: `${req.session.geo['mobile']}`,
+                    inline: true
+                },
+                {
+                    name: 'Proxy',
+                    value: `${req.session.geo['proxy']}`,
+                    inline: true
+                },
+                {
+                    name: 'Hosting',
+                    value: `${req.session.geo['hosting']}`,
+                    inline: true
+                },
+            ],
+            footer: {
+                text: `${getTime('full')} | ${req.sessionID}`
+            }
+        };
+        if (!req.session.sesionChecked || req.session.sesionChecked < (unix - 60)) {
             req.session.sesionChecked = unix;
-            if (!(await isValidSession(req.session.user_id))) {
-                console.debug(`[MapJS] [${getTime()}] [index.js] Detected multiple sessions for ${user.userName} (${user.userId}). Clearing old ones...`);
-                customer.insertAccessLog('Multiple Sessions Detected. Cleared Older Sessions.');
-                user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', `Cleared Excess Sessions.\n${req.session.ip_address}`, '');
-                await clearOtherSessions(req.session.user_id, req.sessionID);
+            req.session.save();
+            let session = await isValidSession(req.session.user_id , req.sessionID);
+            if (!(session.valid)) {
+                embed.title = session.description;
+                embed.color = 0xFF0000;
+                user.sendMessage(req.session.access_log_channel, {embed: embed}).catch(console.error);
+                console.error(`[MapJS] [${getTime()}] [index.js] ${embed.title}, ${req.session.user_name} (${req.session.user_id})`);
+                customer.insertAccessLog(embed.title);
+                if (req.path == "/api/get_data") {
+                    return res.sendStatus(403);
+                } else {
+                    return res.redirect('/login');
+                }
             }
         }
-        if(!req.session.perms || !req.session.updated || req.session.updated < (unix - 1800)){
+        if (!req.session.perms || !req.session.updated || req.session.updated < (unix - 3600)) {
             req.session.updated = unix;
-            user.sendChannelEmbed(req.session.access_log_channel, '00FF00', `Authenticated Successfully via Session.\n${req.session.ip_address}`, '');
-            customer.insertAccessLog('Authenticated Successfully via Session.');
+            req.session.save();
             req.session.perms = await user.getPerms();
-            if(!req.session.perms){
-                customer.insertAccessLog('Invalid Permissions Returned. User Session Destroyed.');
+            if (!req.session.perms) {
+                embed.title = "Invalid Permissions Returned. User Session Destroyed";
+                embed.color = 0xFF0000;
+                user.sendMessage(req.session.access_log_channel, {embed: embed}).catch(console.error);
+                console.error(`[MapJS] [${getTime()}] [index.js] ${embed.title}, ${req.session.user_name} (${req.session.user_id})`);
+                customer.insertAccessLog(embed.title);
                 req.session.destroy();
-                res.redirect('/login');
-                return;
+                if (req.path == "/api/get_data") {
+                    return res.sendStatus(403);
+                } else {
+                    return res.redirect('/subscribe');
+                }
+            } else {
+                embed.title = "Authenticated Successfully via Session";
+                embed.color = 0x00FF00;
+                user.sendMessage(req.session.access_log_channel, {embed: embed}).catch(console.error);
+                console.log(`[MapJS] [${getTime()}] [index.js] ${embed.title}, ${req.session.user_name} (${req.session.user_id})`);
+                customer.insertAccessLog(embed.title);
             }
         }
         const perms = req.session.perms;
         if (!perms.map) {
-            if(req.session.unauthorized_attempts > 5){
-                console.error(`[MapJS] [${getTime()}] Unauthorized Attempt limit reached. Destroying Session. ${req.session.user_name} (${req.session.user_id})`);
-                customer.insertAccessLog('Session Destroyed due to too many Unauthorized Login Attempts.');
-                req.session.destroy();
-                res.redirect('/subscribe');
-                return;
+            embed.title = "Non-Donor Login Attempt";
+            embed.color = 0xFF0000;
+            user.sendMessage(req.session.access_log_channel, {embed: embed}).catch(console.error);
+            console.error(`[MapJS] [${getTime()}] [index.js] ${embed.title}, ${req.session.user_name} (${req.session.user_id})`);
+            customer.insertAccessLog(embed.title);
+            if (req.path == "/api/get_data") {
+                return res.sendStatus(403);
             } else {
-                if(!req.session.unauthorized_attempts){
-                    req.session.unauthorized_attempts = 1;
-                } else {
-                    req.session.unauthorized_attempts++;
-                }
-                req.session.save();
-                console.error(`[MapJS] [${getTime()}] [index.js] Non-Donor Login Attempt, ${req.session.user_name} (${req.session.user_id})`);
-                customer.insertAccessLog('Non-Donor Login Attempt.');
-                await user.sendChannelEmbed(req.session.access_log_channel, 'FFA500', 'Non-Donor Login Attempt.', '');
-                res.redirect('/subscribe');
-                return;
+                return res.redirect('/subscribe');
             }
         }
-        req.session.save();
         defaultData.hide_pokemon = !perms.pokemon;
         defaultData.hide_raids = !perms.raids;
         defaultData.hide_gyms = !perms.gyms;

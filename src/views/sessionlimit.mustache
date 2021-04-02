@@ -1,0 +1,51 @@
+{{> header}}
+{{> navbar}}
+
+    <script src='https://js.stripe.com/v3/'></script>
+    <link href="/css/sessionlimit.css" rel="stylesheet">
+
+    <head>
+    </head>
+
+    <body>
+        <div>
+            <div class="product-card">
+                <div class="accountTitle">
+                    Session Ended
+                </div>
+                <div class="divline"></div>
+                <div class="accountInfo">
+                    Your session has been ended because another session was initiated on another device.<br>
+                    Logging in again will kick off any other active sessions for your account.
+                </div>
+                <button class="loginButton" onClick="window.location.href = '/login';">Login</button>
+                <br>
+                <br>
+                <br>
+                <br>
+                <div>
+                    <button class="discordButton" onClick="window.location.href = 'https://discord.com/channels/{{guild_id}}';">
+                        <img src="/img/joinTheChat.png" />
+                    </button>
+                    <div>
+                        <strong>
+                            Don't have Discord on your Phone?
+                        </strong>
+                    </div>
+                    <button class="discordButton" onClick="window.location.href = 'https://play.google.com/store/apps/details?id=com.discord&hl=en_US&gl=US';">
+                        <img src="/img/getItOnGooglePlay.png" />
+                    </button>
+                    <button class="discordButton" onClick="window.location.href = 'https://apps.apple.com/us/app/discord-talk-chat-hang-out/id985746746';">
+                        <img src="/img/downloadOnTheAppStore.png" />
+                    </button>
+                </div>
+            </div>
+            <br>
+            <div class='fineprint'>
+                Only one session per account is authorized and account sharing is prohibited. We costs as low as possible, but that is dependent on every user making a donation.<br>
+                Please contact an admin on discord if you feel you are seeing this in error.
+            </div>
+        </div>
+    </body>
+
+{{> footer}}

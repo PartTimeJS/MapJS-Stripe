@@ -413,7 +413,7 @@
                 }).then(handleResult);
             });
             const image = document.querySelector('.left-column img');
-            for(let x = 1; x <= 10; x++){
+            for (let x = 1; x <= 10; x++) {
                 document.getElementById(x.toString()).addEventListener('click', () => {
                     image.src = `/img/subscribe/${x.toString()}.png`;
                 });

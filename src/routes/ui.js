@@ -29,6 +29,10 @@ router.get('/account', (req, res) => {
     res.redirect('/api/stripe/account');
 });
 
+router.get('/sessionlimit', (req, res) => {
+    res.redirect('/api/stripe/sessionlimit');
+});
+
 // Map endpoints
 router.get(['/', '/index'], async (req, res) => {
     res.setHeader('Content-Type', 'text/html');

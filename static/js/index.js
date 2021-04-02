@@ -2204,6 +2204,12 @@ function loadData () {
         data: data,
         type: 'POST',
         async: true,
+        statusCode: {
+            403: function() {
+                console.error("403 Returned. Session Limit Reached.");
+                document.location.href = "/sessionlimit";
+            }
+        },
         success: function (data) {
             const gyms = data.data.gyms;
             let ts = Math.round((new Date()).getTime() / 1000);
@@ -2648,7 +2654,7 @@ function loadData () {
 
             lastUpdate = new Date();
             loadRequest = null;
-        }
+        } 
     });
 }
 

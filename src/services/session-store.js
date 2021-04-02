@@ -2,7 +2,7 @@
 
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
-
+const moment = require('moment');
 const config = require('../services/config.js');
 const MySQLConnector = require('../services/mysql.js');
 
@@ -34,9 +34,9 @@ const sessionStore = new MySQLStore({
     }
 });
 
-const isValidSession = async (userId) => {
+const isValidSession = async (userId, currentSessionId) => {
     let sql = `
-    SELECT session_id
+    SELECT session_id, flagged
     FROM ${dbSelection.sessionTable}
     WHERE
         json_extract(data, '$.user_id') = ?
@@ -44,20 +44,56 @@ const isValidSession = async (userId) => {
     `;
     let args = [userId];
     let results = await db.query(sql, args);
-    return results.length <= config.maxSessions;
+    for ( let s = 0; s < results.length; s++) {
+        if (results[s].session_id == currentSessionId) {
+            if (results[s].flagged === 0 && results.length > config.maxSessions) {
+                clearOtherSessions(userId, currentSessionId);
+            }
+            if (results[s].flagged > 0) {
+                return {
+                    valid: false,
+                    description: "Flagged Session Identified and Terminated"
+                };
+            } else {
+                if (results.length > 0) {
+                    return { 
+                        valid: true 
+                    };
+                } else {
+                    return { 
+                        valid: false, 
+                        description: "Invalid Session ID" 
+                    };
+                }
+            }
+        }
+    }
 };
 
 const clearOtherSessions = async (userId, currentSessionId) => {
     let sql = `
-    DELETE FROM ${dbSelection.sessionTable}
+    UPDATE ${dbSelection.sessionTable}
+    SET flagged = 1, expires = UNIX_TIMESTAMP() + 65
     WHERE
         json_extract(data, '$.user_id') = ?
         AND session_id != ?
     `;
     let args = [userId, currentSessionId];
     let results = await db.query(sql, args);
-    console.log('[MapJS] [Session] Clear Result:', `Affected Rows: ${results.affectedRows}`, `Changed Rows: ${results.changedRows}`);
 };
+
+function getTime (type) {
+    switch (type) {
+        case 'full':
+            return moment().format('dddd, MMMM Do  h:mmA');
+        case 'unix':
+            return moment().unix();
+        case 'ms':
+            return moment().valueOf();
+        default:
+            return moment().format('hh:mmA');
+    }
+}
 
 module.exports = {
     sessionStore,

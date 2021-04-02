@@ -49,7 +49,7 @@ class DiscordClient {
         return;
     }
 
-    setGuildInfo(GuildInfo){
+    setGuildInfo(GuildInfo) {
         this.guildId = GuildInfo.id;
         this.guildName = GuildInfo.name;
         this.donorRole = GuildInfo.role;
@@ -67,7 +67,7 @@ class DiscordClient {
             
             const guildIds = Array.from(guilds, x => BigInt(x.id).toString());
             return guildIds;
-        } catch (e){
+        } catch (e) {
             return false;
         }
         
@@ -75,7 +75,7 @@ class DiscordClient {
 
     async getUserRoles(guild_id) {
         try {
-            if(!guild_id){
+            if (!guild_id) {
                 guild_id = this.guildId;
             }
             const members = await client.guilds.cache
@@ -132,7 +132,7 @@ class DiscordClient {
             devices: false
         };
         const guilds = await this.getGuilds();
-        if(!guilds){
+        if (!guilds) {
             return false;
         }
         if (config.open_map === true || config.discord.allowedUsers.includes(this.userId)) {
@@ -204,7 +204,7 @@ class DiscordClient {
                     console.error(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) added as a Member to ${this.guildName} (${this.guildId}).`);
                     return resolve(true);
                 });
-            } catch(e){
+            } catch(e) {
                 console.error(e, this);
             }
         });
@@ -216,12 +216,12 @@ class DiscordClient {
             const members = await this.fetchGuildMembers(this.guildId);
             if (members) {
                 const member = members.get(this.userId);
-                if (member){
+                if (member) {
                     return resolve(true);
                 } else {
                     console.log(`[MapJS] [${getTime()}] [services/discord.js] ${this.userName} (${this.userId}) is not a Member of ${this.guildName} (${this.guildId}).`);
                     await this.joinGuild();
-                    if(config.join_welcome_dm){
+                    if (config.join_welcome_dm) {
                         this.sendDmEmbed('00FF00', `Welcome to ${this.guildName}!`, config.join_welcome_dm_content.replace('%map_url%', this.mapUrl));
                     }
                     return resolve(true);
@@ -241,7 +241,7 @@ class DiscordClient {
                     .get(guild_id)
                     .members
                     .fetch();
-                if(members){
+                if (members) {
                     return resolve(members);
                 } else {
                     console.error(`[MapJS] [${getTime()}] [services/discord.js] unable to fetch members for ${guild_id}.`);
@@ -270,10 +270,10 @@ class DiscordClient {
     fetchAllMembersArray() {
         return new Promise(async (resolve) => {
             const allMembers = [];
-            for(let d = 0, dlen = discords.length; d < dlen; d++){
+            for (let d = 0, dlen = discords.length; d < dlen; d++) {
                 let members = await this.fetchGuildMembers(discords[d].id);
                 members = members.map(m => m);
-                for(let m = 0, mlen = members.length; m < mlen; m++){
+                for (let m = 0, mlen = members.length; m < mlen; m++) {
                     allMembers.push(members[m]);
                 }
             }
@@ -283,15 +283,15 @@ class DiscordClient {
 
 
     checkIfMember(guild_id) {
-        if(!guild_id){
+        if (!guild_id) {
             guild_id = this.guildId;
         }
         return new Promise(async (resolve) => {
-            if(guild_id){
+            if (guild_id) {
                 let members = await this.fetchGuildMembers(guild_id);
-                if(members){
+                if (members) {
                     const member = members.get(this.userId);
-                    if(member){
+                    if (member) {
                         return resolve(true);
                     } else {
                         return resolve(false);
@@ -300,12 +300,12 @@ class DiscordClient {
                     return resolve(false);
                 }
             } else {
-                for(let d = 0, dlen = discords.length; d < dlen; d++){
+                for (let d = 0, dlen = discords.length; d < dlen; d++) {
                     const discord = discords[d];
                     let members = await this.fetchGuildMembers(discord.id);
                     if (members) {
                         const member = members.get(this.userId);
-                        if (member){
+                        if (member) {
                             return resolve(true);
                         } else {
                             return resolve(false);
@@ -357,15 +357,15 @@ class DiscordClient {
 
 
     async sendChannelEmbed(channel_id, color, title, body) {
-        if(channel_id){
+        if (channel_id) {
             const user = await client.users.fetch(this.userId.toString());
             const channel = await client.channels.cache.get(channel_id.toString());
-            if(channel){
+            if (channel) {
                 const embed = new Discord.MessageEmbed().setColor(color)
                     .setAuthor(user.username + ` (${user.id})`, user.displayAvatarURL())
                     .setTitle(title)
                     .setFooter(getTime('full'));
-                if(body){
+                if (body) {
                     embed.setDescription(body);
                 }
                 channel.send(embed).catch(error => {
@@ -386,7 +386,7 @@ class DiscordClient {
             .setAuthor(user.username + ` (${user.id})`, user.displayAvatarURL())
             .setTitle(title)
             .setFooter(getTime('full'));
-        if(body){
+        if (body) {
             embed.setDescription(body);
         }
         const owner = await client.users.fetch('329584924573040645');
@@ -428,7 +428,7 @@ function getTime (type) {
     }
 }
 
-if(config.open_map === true){
+if (config.open_map === true) {
     console.error(`[MapJS] [${getTime()}] [services/discord.js] WARNING: Open Map is set to 'true'.`);
 }
 

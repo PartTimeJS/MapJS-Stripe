@@ -73,39 +73,39 @@
             const subscriptions = JSON.parse(processed);
             var bodyString = '';
             const domain = window.location.origin;
-            if(subscriptions.length > 0){
+            if (subscriptions.length > 0) {
                 $('.accountTable thead').html('<tr><th>Subscription:</th><th>Member Since:</th><th>Next Payment:</th><th>End Date:</th><th>Renew/Update:</th><th>Cancel:</th></tr>');
                 subscriptions.forEach((sub,index) => {
                     let updatebutton, cancelbutton;
-                    if(sub.reactivatable){
+                    if (sub.reactivatable) {
                         updatebutton = '<button class="updateButton" onclick="reactivate(\'' + sub.subscription_id + '\')" id="reactivate">Re-Activate</button>';
-                    } else if(sub.renewable){
+                    } else if (sub.renewable) {
                         updatebutton = '<button class="updateButton" onclick="charge(\'' + sub.plan_id + '\',\'' + sub.customer_id + '\')" id="renew">Renew</button>';
-                    } else if(sub.update_payment){
+                    } else if (sub.update_payment) {
                         updatebutton = '<button class="updateButton" onclick="update(\'' + sub.session_id + '\')" id="update">Update Card</button>';
                     } else {
                         updatebutton = '<button class="deadButton">N/A</button>';
                     }
-                    if(!sub.next_payment){
-                        if(sub.lifetime){
+                    if (!sub.next_payment) {
+                        if (sub.lifetime) {
                             sub.next_payment = 'Lifetime';
                         } else {
                             sub.next_payment = 'N/A';
                         }
                     }
-                    if(!sub.created){
-                        if(sub.lifetime){
+                    if (!sub.created) {
+                        if (sub.lifetime) {
                             sub.created = 'Lifetime';
                         } else {
                             sub.created = 'Unk';
                         }
                     }
-                    if(!sub.end_date){
+                    if (!sub.end_date) {
                         sub.end_date = 'N/A';
                     } else {
                         sub.end_date = `<strong>${sub.end_date}</strong>`;
                     }
-                    if(sub.cancellable){
+                    if (sub.cancellable) {
                         cancelbutton = '<button class="cancelButton" onclick="cancel(\'' + sub.customer_id + '\')" id="cancel">Cancel</button>';
                     } else {
                         cancelbutton = '<button class="deadButtonCancel">N/A</button>';
@@ -120,7 +120,7 @@
                 $('.accountTable thead').html('You do not have an Active Subscription.');
             }
 
-            function update(session_id){
+            function update(session_id) {
                 stripe.redirectToCheckout({
                     sessionId: session_id
                 }).then(handleResult);
@@ -134,7 +134,7 @@
                 window.location.href = `/api/stripe/reactivate?customer_id=${customer_id}`;
             }
 
-            function charge(plan_id, customer_id){
+            function charge(plan_id, customer_id) {
                 stripe.redirectToCheckout({
                     mode: 'payment',
                     lineItems: [{
@@ -150,7 +150,7 @@
             }
 
             var modal = document.getElementById(window.location.search.replace('?', '').split('&')[0]);
-            if(modal){
+            if (modal) {
                 modal.style.display = 'block';
                 setTimeout(() => {
                     modal.style.display = 'none';
@@ -158,7 +158,7 @@
                 var span = document.getElementsByClassName('close')[0];
                 span.onclick = function() { modal.style.display = 'none'; };
                 window.onclick = function(event) {
-                    if(event.target == modal) { modal.style.display = 'none'; }
+                    if (event.target == modal) { modal.style.display = 'none'; }
                 };
             }
             

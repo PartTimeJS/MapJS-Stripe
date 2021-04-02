@@ -21,16 +21,16 @@ const catchAsyncErrors = fn => ((req, res, next) => {
 
 router.get('/login', (req, res) => {
     let discord = false;
-    if(discords.length > 1){
-        for(let d = 0, dlen = discords.length; d < dlen; d++){
-            if(('https://' + req.get('host')) === discords[d].domain){
+    if (discords.length > 1) {
+        for (let d = 0, dlen = discords.length; d < dlen; d++) {
+            if (('https://' + req.get('host')) === discords[d].domain) {
                 discord = discords[d]; break;
             }
         }
     } else {
         discord = discords[0];
     }
-    if(discord){
+    if (discord) {
         req.session.guild_id = discord.id;
         req.session.plan_id = discord.plan_id;
         req.session.amt = discord.plan_cost;
@@ -72,6 +72,7 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         req.session.user_id = data.id;
         req.session.email = data.email;
         req.session.user_name = data.username;
+        req.session.avatar = data.avatar;
         user.setClientInfo(req.session);
         await user.guildMemberCheck();
         const customer = new StripeClient(req.session);
@@ -79,12 +80,12 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
         req.session.perms = await user.getPerms();
         const perms = req.session.perms;
         const valid = perms.map !== false;
-        const url = `http://ip-api.com/json/${ip}?fields=66846719&lang=${config.locale || 'en'}`;
+        const url = `http://ip-api.com/json/${req.session.ip_address}?fields=66846719&lang=${config.locale || 'en'}`;
         const geoResponse = await axios.get(url);
-        const geo = geoResponse.data;
+        req.session.geo = geoResponse.data;
         req.session.client_info = req.headers['user-agent'];
-        req.session.provider = `${geo['isp']}, ${geo['as']}`;
-        req.session.mobile = `${geo['mobile']}`;
+        req.session.provider = `${req.session.geo['isp']}, ${req.session.geo['as']}`;
+        req.session.mobile = `${req.session.geo['mobile']}`;
         req.session.save();
         const embed = {
             color: 0xFF0000,
@@ -104,35 +105,35 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
                 },
                 {
                     name: 'Geo Lookup',
-                    value: `${geo['city']}, ${geo['regionName']}, ${geo['zip']}` 
+                    value: `${req.session.geo['city']}, ${req.session.geo['regionName']}, ${req.session.geo['zip']}` 
                 },
                 {
                     name: 'Network Provider',
-                    value: `${geo['isp']}, ${geo['as']}`
+                    value: `${req.session.geo['isp']}, ${req.session.geo['as']}`
                 },
                 {
                     name: 'Mobile',
-                    value: `${geo['mobile']}`,
+                    value: `${req.session.geo['mobile']}`,
                     inline: true
                 },
                 {
                     name: 'Proxy',
-                    value: `${geo['proxy']}`,
+                    value: `${req.session.geo['proxy']}`,
                     inline: true
                 },
                 {
                     name: 'Hosting',
-                    value: `${geo['hosting']}`,
+                    value: `${req.session.geo['hosting']}`,
                     inline: true
                 },
             ],
             footer: {
-                text: getTime('full')
+                text: `${getTime('full')} | ${req.sessionID}`
             }
         };
         let redirect;
         if (valid) {
-            embed.title = 'User Successfully Authenticated';
+            embed.title = 'Authenticated Successfully via Oauth';
             embed.color = 0x00FF00;
             redirect = '/';
             console.log(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Authenticated Successfully via Oauth.`);
@@ -149,7 +150,7 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
             redirect = '/blocked';
             console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Suspended Login Attempt.`);
             customer.insertAccessLog('Suspended Login Attempt.');
-        }else {
+        } else {
             console.warn(`[MapJS] [${getTime()}] [services/discord.js] ${user.userName} (${user.userId}) - Authentication Attempt via Oauth.`);
             redirect = '/subscribe';
             customer.insertAccessLog('Authentication Attempt usign Discord Oauth.');
