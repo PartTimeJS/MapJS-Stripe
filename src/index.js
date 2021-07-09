@@ -137,7 +137,7 @@ app.use(async (req, res, next) => {
             if (req.path == "/api/get_data") {
                 return res.sendStatus(403);
             } else {
-                return res.render('blocked', defaultData);
+                return res.render("blocked", defaultData);
             }
         }
         const user = new DiscordClient(req.session);
@@ -157,7 +157,7 @@ app.use(async (req, res, next) => {
             fields: [
                 { 
                     name: 'Client Info',  
-                    value: req.headers['user-agent'] 
+                    value: req.session.client_info
                 },
                 { 
                     name: 'Ip Address',
@@ -204,7 +204,7 @@ app.use(async (req, res, next) => {
                 if (req.path == "/api/get_data") {
                     return res.sendStatus(403);
                 } else {
-                    return res.redirect('/login');
+                    return res.redirect("/login");
                 }
             }
         }
@@ -220,9 +220,9 @@ app.use(async (req, res, next) => {
                 customer.insertAccessLog(embed.title);
                 req.session.destroy();
                 if (req.path == "/api/get_data") {
-                    return res.sendStatus(403);
+                    return res.sendStatus(401);
                 } else {
-                    return res.redirect('/subscribe');
+                    return res.redirect("/login");
                 }
             } else {
                 embed.title = "Authenticated Successfully via Session";
@@ -242,7 +242,7 @@ app.use(async (req, res, next) => {
             if (req.path == "/api/get_data") {
                 return res.sendStatus(403);
             } else {
-                return res.redirect('/subscribe');
+                return res.redirect("/subscribe");
             }
         }
         defaultData.hide_pokemon = !perms.pokemon;
@@ -263,27 +263,27 @@ app.use(async (req, res, next) => {
         defaultData.hide_devices = !perms.devices;
         return next();
     }
-    res.redirect('/login');
+    res.redirect("/login");
 });
 
 // UI routes
-app.use('/', uiRoutes);
+app.use("/", uiRoutes);
 
-app.use('/api', requestRateLimiter);
+app.use("/api", requestRateLimiter);
 
 // API routes
-app.use('/api', apiRoutes);
+app.use("/api", apiRoutes);
 
 // Start listener
 app.listen(config.port, config.interface, () => console.log(`[MapJS] [index.js] Listening on port ${config.port}...`));
 
 function getTime (type) {
     switch (type) {
-        case 'full':
+        case "full":
             return moment().format('dddd, MMMM Do  h:mmA');
-        case 'unix':
+        case "unix":
             return moment().unix();
-        case 'ms':
+        case "ms":
             return moment().valueOf();
         default:
             return moment().format('hh:mmA');

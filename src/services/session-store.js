@@ -1,13 +1,13 @@
-'use strict';
+"use strict";
 
-const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
-const moment = require('moment');
-const config = require('../services/config.js');
-const MySQLConnector = require('../services/mysql.js');
+const session = require("express-session");
+const MySQLStore = require("express-mysql-session")(session);
+
+const config = require("../services/config.js");
+const MySQLConnector = require("../services/mysql.js");
 
 const { scanner, manualdb } = config.db;
-const dbSelection = manualdb.useFor.includes('session') ? manualdb : scanner;
+const dbSelection = manualdb.useFor.includes("session") ? manualdb : scanner;
 const db = new MySQLConnector(dbSelection);
 
 // MySQL session store
@@ -79,21 +79,8 @@ const clearOtherSessions = async (userId, currentSessionId) => {
         AND session_id != ?
     `;
     let args = [userId, currentSessionId];
-    let results = await db.query(sql, args);
+    db.query(sql, args);
 };
-
-function getTime (type) {
-    switch (type) {
-        case 'full':
-            return moment().format('dddd, MMMM Do  h:mmA');
-        case 'unix':
-            return moment().unix();
-        case 'ms':
-            return moment().valueOf();
-        default:
-            return moment().format('hh:mmA');
-    }
-}
 
 module.exports = {
     sessionStore,

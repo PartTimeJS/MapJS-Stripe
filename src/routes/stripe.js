@@ -302,8 +302,9 @@ router.get('/cardupdate', async function(req, res) {
     customer.customerId = session.customer;
     const record = await customer.fetchRecordByCustomer();
     const user = new DiscordClient(record);
+    user.donorRole = guild.role;
     const intent = await customer.retrieveSetupIntent(session.setup_intent);
-    await customer.updatePaymentMethod(intent.customer, record.plan_id, intent.payment_method);
+    await customer.updatePaymentMethod(intent.customer, record.subscription_id, intent.payment_method);
     user.assigned = await user.assignDonorRole();
     if (user.assigned) {
         user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');

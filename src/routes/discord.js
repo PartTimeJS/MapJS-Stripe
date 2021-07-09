@@ -7,7 +7,6 @@ const moment = require('moment');
 const DiscordClient = require('../services/discord.js');
 const StripeClient = require('../services/stripe.js');
 //const utils = require('../services/utils.js');
-const defaultData = require('../data/default.js');
 const config = require('../services/config.js');
 const discords = require('../configs/discords.json').discords;
 
@@ -97,7 +96,7 @@ router.get('/callback', catchAsyncErrors(async (req, res) => {
             fields: [
                 { 
                     name: 'Client Info',  
-                    value: req.headers['user-agent'] 
+                    value: req.session.client_info
                 },
                 { 
                     name: 'Ip Address',
