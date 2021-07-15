@@ -61,13 +61,16 @@ app.use(compression());
 // Static paths
 app.use(express.static(path.resolve(__dirname, '../static')));
 
+// favicon for browsers
+app.use('/favicon.ico', express.static(path.resolve(__dirname, '../static/custom/favicon.ico')));
+
 // Body parser middlewares
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: false, limit: '500mb' }));
 
 // Initialize localzation handler
 i18n.configure({
-    locales:['en', 'es', 'de'],
+    locales:['en', 'es', 'de', 'pl'],
     directory: path.resolve(__dirname, '../static/locales')
 });
 app.use(i18n.init);
@@ -88,6 +91,15 @@ app.use((req, res, next) => {
 // Set locale
 i18n.setLocale(config.locale);
 
+// Sessions middleware
+/*
+app.use(cookieSession({
+    name: 'session',
+    keys: [config.sessionSecret],
+    maxAge: 518400000,
+    store: sessionStore
+}));
+*/
 app.use(session({
     key: 'session',
     secret: config.sessionSecret,
@@ -96,6 +108,7 @@ app.use(session({
     saveUninitialized: false,
     cookie: {maxAge: 604800000}
 }));
+
 
 app.use('/api/discord', discordRoutes);
 
@@ -116,9 +129,7 @@ app.use((err, req, res, next) => {
     }
 });
 /* eslint-enable no-unused-vars */
-
 app.use('/api/stripe', stripeRoutes);
-
 // Login middleware
 app.use(async (req, res, next) => {
     const unix = moment().unix();

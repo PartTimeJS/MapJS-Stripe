@@ -19,7 +19,7 @@ router.post('/get_data', async (req, res) => {
 });
 
 router.post('/search', async (req, res) => {
-    const data = await getSearch(req.body);
+    const data = await getSearch(req.session.perms, req.body);
     res.json({ data: data });
 });
 
@@ -335,24 +335,29 @@ const getData = async (perms, filter) => {
     const permShowWeather = perms ? perms.weather !== false : true;
     const permShowNests = perms ? perms.nests !== false : true;
     const permShowPortals = perms ? perms.portals !== false : true;
+    const permAreaRestrictions = perms ? perms.areaRestrictions : [];
 
     let data = {};
     if ((permShowGyms && showGyms) || (permShowRaids && showRaids)) {
-        data['gyms'] = await map.getGyms(minLat, maxLat, minLon, maxLon, lastUpdate,
-            permShowRaids && showRaids, permShowGyms && showGyms, permShowGyms, raidFilterExclude, gymFilterExclude);
+        data['gyms'] = await map.getGyms(minLat, maxLat, minLon, maxLon, lastUpdate, permShowRaids && showRaids,
+            permShowGyms && showGyms, permShowGyms, raidFilterExclude, gymFilterExclude, permAreaRestrictions);
     }
     if (
         (permShowPokestops && showPokestops) ||
         (permShowQuests && showQuests) ||
         (permShowInvasions && showInvasions)
     ) {
-        data['pokestops'] = await map.getPokestops(minLat, maxLat, minLon, maxLon, lastUpdate, permShowPokestops && showPokestops, permShowQuests && showQuests, permShowLures, permShowInvasions && showInvasions, questFilterExclude, pokestopFilterExclude, invasionFilterExclude);
+        data['pokestops'] = await map.getPokestops(minLat, maxLat, minLon, maxLon, lastUpdate,
+            permShowPokestops && showPokestops, permShowQuests && showQuests, permShowLures, permShowInvasions && showInvasions,
+            questFilterExclude, pokestopFilterExclude, invasionFilterExclude, permAreaRestrictions);
     }
     if (permShowPokemon && showPokemon) {
-        data['pokemon'] = await map.getPokemon(minLat, maxLat, minLon, maxLon, permShowPVP, permShowIV, lastUpdate, pokemonFilterExclude, pokemonFilterIV);
+        data['pokemon'] = await map.getPokemon(minLat, maxLat, minLon, maxLon, permShowPVP, permShowIV, lastUpdate,
+            pokemonFilterExclude, pokemonFilterIV, permAreaRestrictions);
     }
     if (permShowSpawnpoints && showSpawnpoints) {
-        data['spawnpoints'] = await map.getSpawnpoints(minLat, maxLat, minLon, maxLon, lastUpdate, spawnpointFilterExclude);
+        data['spawnpoints'] = await map.getSpawnpoints(minLat, maxLat, minLon, maxLon, lastUpdate,
+            spawnpointFilterExclude, permAreaRestrictions);
     }
     if (permShowDevices && showActiveDevices) {
         data['active_devices'] = await map.getDevices(deviceFilterExclude);
@@ -372,10 +377,10 @@ const getData = async (perms, filter) => {
         data['weather'] = await map.getWeather(minLat, maxLat, minLon, maxLon, lastUpdate, weatherFilterExclude);
     }
     if (permShowNests && showNests) {
-        data['nests'] = await map.getNests(minLat, maxLat, minLon, maxLon, nestFilterExclude);
+        data['nests'] = await map.getNests(minLat, maxLat, minLon, maxLon, nestFilterExclude, permAreaRestrictions);
     }
     if (permShowPortals && showPortals) {
-        data['portals'] = await map.getPortals(minLat, maxLat, minLon, maxLon, portalFilterExclude);
+        data['portals'] = await map.getPortals(minLat, maxLat, minLon, maxLon, portalFilterExclude, permAreaRestrictions);
     }
 
     if (permViewMap && showPokemonFilter) {
@@ -619,6 +624,22 @@ const getData = async (perms, filter) => {
             'type': gymOptionsString
         });
 
+        // AR-scan gyms
+        gymData.push({
+            'id': {
+                'formatted': utils.zeroPad(7, 3),
+                'sort': 7
+            },
+            'name': i18n.__('filter_ar_scan') ,
+            'image': {
+                type: 'img',
+                path: '/misc/ar-gym.png'
+            },
+            'filter': generateShowHideButtons('ar', 'gym-ar'),
+            'size': generateSizeButtons('ar', 'gym-ar'),
+            'type': gymOptionsString
+        });
+
         //Available slots
         for (let i = 0; i <= 6; i++) {
             const availableSlots = i18n.__('filter_gym_available_slots_' + i);
@@ -802,6 +823,8 @@ const getData = async (perms, filter) => {
     }
 
     if (permViewMap && showPokestopFilter) {
+        const pokestopLuresString = i18n.__('filter_pokestop_lures');
+        const pokestopPokestopsString = i18n.__('filter_pokestop_pokestops');
         const pokestopOptionsString = i18n.__('filter_pokestop_options');
         const pokestopNormal = i18n.__('filter_pokestop_normal');
         const pokestopData = [];
@@ -817,11 +840,11 @@ const getData = async (perms, filter) => {
             },
             'filter': generateShowHideButtons('normal', 'pokestop-normal'),
             'size': generateSizeButtons('normal', 'pokestop-normal'),
-            'type': pokestopOptionsString
+            'type': pokestopPokestopsString
         });
 
         if (permShowLures) {
-            for (let i = 1; i <= 4; i++) {
+            for (let i = 1; i <= 5; i++) {
                 const pokestopLure = i18n.__('filter_pokestop_lure_' + i);
                 pokestopData.push({
                     'id': {
@@ -835,10 +858,24 @@ const getData = async (perms, filter) => {
                     },
                     'filter': generateShowHideButtons(i, 'pokestop-lure'),
                     'size': generateSizeButtons(i, 'pokestop-lure'),
-                    'type': pokestopOptionsString
+                    'type': pokestopLuresString
                 });
             }
         }
+        pokestopData.push({
+            'id': {
+                'formatted': utils.zeroPad(0, 3),
+                'sort': 100
+            },
+            'name': i18n.__('filter_ar_scan') ,
+            'image': {
+                type: 'img',
+                path: '/misc/ar-pokestop.png'
+            },
+            'filter': generateShowHideButtons('ar', 'pokestop-ar'),
+            'size': generateSizeButtons('ar', 'pokestop-ar'),
+            'type': pokestopOptionsString
+        });
         data['pokestop_filters'] = pokestopData;
     }
 
@@ -1046,8 +1083,9 @@ const getData = async (perms, filter) => {
     return data;
 };
 
-const getSearch = async (filter) => {
-    const searchData = await map.getSearchData(filter.lat, filter.lon, filter.id, filter.value, filter.icon_style);
+const getSearch = async (perms, filter) => {
+    const permAreaRestrictions = [];
+    const searchData = await map.getSearchData(filter.lat, filter.lon, filter.id, filter.value, filter.icon_style, permAreaRestrictions);
     return searchData;
 };
 

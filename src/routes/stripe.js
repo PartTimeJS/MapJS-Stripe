@@ -49,7 +49,7 @@ router.get('/subscribe', async (req, res) => {
         req.session.onetime_id = guild.onetime_id;
         req.session.amt1 = guild.recurring_cost;
         req.session.amt2 = guild.onetime_cost;
-        req.session.donor_role = guild.role;
+        req.session.donor_role = guild.donorRole;
         const customer = new StripeClient(req.session);
         const record = await customer.fetchRecordByUser();
         if (record) {
@@ -101,7 +101,7 @@ router.get('/account', async (req, res) => {
             req.session.onetime_id = guild.onetime_id;
             req.session.amt1 = guild.recurring_cost;
             req.session.amt2 = guild.onetime_cost;
-            req.session.donor_role = guild.role;
+            req.session.donor_role = guild.donorRole;
             if (record) {
                 const records = await customer.fetchAccountRecords();
                 for (let r = 0, rlen = records.length; r < rlen; r++) {
@@ -197,7 +197,7 @@ router.get('/success', async function(req, res) {
         customer.updateCustomerName(session.customer, session.client_reference_id);
         const record = await customer.fetchRecordByUser();
         const user = new DiscordClient(record);
-        user.donorRole = guild.role;
+        user.donorRole = guild.donorRole;
         if (!session.subscription || session.subscription === null) {
             customer.planId = req.session.onetime_id;
             if (Number.isInteger(parseInt(record.subscription_id))) {
@@ -229,7 +229,7 @@ router.get('/success', async function(req, res) {
         }
         req.session.subscription_id = customer.subscriptionId;
         customer.updateDbRecord();
-        user.assigned = await user.assignDonorRole();
+        user.assigned = await user.assignRole(guild.donorRole);
         if (user.assigned) {
             user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
         }
@@ -255,7 +255,7 @@ router.get('/renew', async function(req, res) {
         const oldCustomer = new StripeClient(record);
         oldCustomer.deleteCustomer();
         const user = new DiscordClient(record);
-        user.donorRole = guild.role;
+        user.donorRole = guild.donorRole;
         if (!session.subscription || session.subscription === null) {
             customer.planId = req.session.onetime_id;
             if (Number.isInteger(parseInt(record.subscription_id))) {
@@ -276,7 +276,7 @@ router.get('/renew', async function(req, res) {
         }
         req.session.subscription_id = customer.subscriptionId;
         customer.updateDbRecord();
-        user.assigned = await user.assignDonorRole();
+        user.assigned = await user.assignRole(guild.donorRole);
         if (user.assigned) {
             user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
         }
@@ -302,10 +302,10 @@ router.get('/cardupdate', async function(req, res) {
     customer.customerId = session.customer;
     const record = await customer.fetchRecordByCustomer();
     const user = new DiscordClient(record);
-    user.donorRole = guild.role;
+    user.donorRole = guild.donorRole;
     const intent = await customer.retrieveSetupIntent(session.setup_intent);
     await customer.updatePaymentMethod(intent.customer, record.subscription_id, intent.payment_method);
-    user.assigned = await user.assignDonorRole();
+    user.assigned = await user.assignRole(guild.donorRole);
     if (user.assigned) {
         user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
     }
@@ -366,7 +366,7 @@ router.post('/webhook', bodyParser.raw({
                 if (webhook.type === 'charge.succeeded') {
                     console.log(`[MapJS] [${getTime()}] [routes/stripe.js] Received Successful Charge webhook for ${customer.userName} (${customer.customerId}).`);
                     user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Payment Successful! 💰 ', 'Amount: **$' + parseFloat(webhook.data.object.amount / 100).toFixed(2) + '**');
-                    user.assigned = await user.assignDonorRole();
+                    user.assigned = await user.assignRole(guild.donorRole);
                     if (user.assigned) {
                         user.sendChannelEmbed(guild.stripe_log_channel, '00FF00', 'Donor Role Assigned 📝', '');
                     }

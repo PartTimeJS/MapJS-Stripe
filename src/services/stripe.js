@@ -52,7 +52,7 @@ class StripeClient {
     setGuildInfo(guildInfo) {
         this.guildId = !guildInfo.id ? this.guildId : guildInfo.id;
         this.guildName = !guildInfo.name ? this.guildName : guildInfo.name;
-        this.donorRole = guildInfo.role;
+        this.donorRole = guildInfo.donorRole;
         this.mapUrl = guildInfo.domain;
         return;
     }
@@ -585,7 +585,7 @@ class StripeClient {
                 }
             }
             if (guild) {
-                this.donorRole = guild.role;
+                this.donorRole = guild.donorRole;
                 this.guildId = guild.id;
                 this.guildName = guild.name;
                 this.mapUrl = guild.domain;

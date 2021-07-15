@@ -11,7 +11,6 @@ const defaultData = require('../data/default.js');
 //const InventoryItemId = require('../data/item.js');
 const map = require('../data/map.js');
 
-
 router.get('/login', (req, res) => {
     res.redirect('/api/discord/login');
 });
@@ -38,6 +37,27 @@ router.get(['/', '/index'], async (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     const data = await handlePage(req, res);
     res.render('index', data);
+});
+
+if (config.homepage.enabled) {
+    router.get('/home', (req, res) => {
+        const data = {};
+        data.discord_invite = config.homepage.discordInvite;
+        data.map_title = config.homepage.title;
+        data.description_1 = config.homepage.descriptionLine1;
+        data.description_2 = config.homepage.descriptionLine2;
+        res.render('home', data);
+    });
+}
+
+router.get('/blocked', (req, res) => {
+    const data = {};
+    data.discord_invite = config.discord.invite;
+    if (req.session.username) {
+        data.guild_name = req.session.perms.blocked;
+        data.username = req.session.username;
+    }
+    res.render('blocked', data);
 });
 
 // Location endpoints
@@ -144,6 +164,7 @@ const handlePage = async (req, res) => {
         data.hide_nests = !perms.nests;
         data.hide_weather = !perms.weather;
         data.hide_devices = !perms.devices;
+        data.hide_portals = !perms.portals;
     } else {
         res.redirect('/login');
     }
@@ -234,7 +255,7 @@ const updateAvailableForms = async (icons) => {
                 });
                 icon.pokemonList = availableForms;
             }
-        } else if (!Array.isArray(icon.pokemonList) || Date.now() - icon.lastRetrieved > 60 * 60 * 1000) {
+        } else if (!Array.isArray(icon.pokemonList) || Date.now() - icon.lastRetrieved > 60 * 60 * 1000) try {
             const response = await axios({
                 method: 'GET',
                 url: icon.path + '/index.json',
@@ -242,6 +263,8 @@ const updateAvailableForms = async (icons) => {
             });
             icon.pokemonList = response ? response.data : [];
             icon.lastRetrieved = Date.now();
+        } catch (e) {
+            console.warn(e);
         }
     }
 };

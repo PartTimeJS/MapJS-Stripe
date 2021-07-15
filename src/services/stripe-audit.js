@@ -123,7 +123,7 @@ function customersAudit(customers) {
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                 }
                             } else {
-                                user.assigned = await user.assignDonorRole();
+                                user.assigned = await user.assignRole(guild.donorRole);
                                 if (user.assigned) {
                                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${record.user_id}) found without a Donor Role and assigned Role.`);
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
@@ -185,7 +185,7 @@ function customersAudit(customers) {
                                 if (moment().unix() >= (expiration - 97200) && moment().unix() < (expiration - 75600)) {
                                     user.sendDmEmbed('FF0000', 'Hello! Your One Month Access is expiring in ~24 hours!', `Please visit ${guild.domain}/account if you wish to renew! **If you would like to switch to a subscription**, wait until your expiration notice and then go to ${guild.domain}/subscribe.`);
                                 }
-                                user.assigned = await user.assignDonorRole();
+                                user.assigned = await user.assignRole(guild.donorRole);
                                 if (user.assigned) {
                                     console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${record.user_id}) found without a Donor Role and assigned Role.`);
                                     user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
@@ -256,7 +256,7 @@ function databaseAudit() {
                     const customer = new StripeClient(record);
                     if (member) {
                         if (record.customer_id == 'Lifetime') {
-                            user.assigned = await user.assignDonorRole();
+                            user.assigned = await user.assignRole(guild.donorRole);
                             if (user.assigned) {
                                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${record.user_name} (${record.user_id}) found without a Donor Role and assigned Role.`);
                                 user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Lifetime Member found without a Donor Role 🔎', '');
@@ -281,7 +281,7 @@ function databaseAudit() {
                                             user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Donor Role Removed ⚖', '');
                                         }
                                     } else {
-                                        user.assigned = await user.assignDonorRole();
+                                        user.assigned = await user.assignRole(guild.donorRole);
                                         if (user.assigned) {
                                             console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${record.user_id}) found without a Donor Role and assigned Role.`);
                                             user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
@@ -311,7 +311,7 @@ function databaseAudit() {
                                                 console.info(`[MapJS] [${getTime()}] [services/stripe.js] Found discrepency. Updating guild_name for ${customer.userName} (${record.user_id}).`);
                                                 db.query(`UPDATE ${config.stripe.db.customer_table} SET guild_name = '${guild.name}' WHERE user_id = '${record.user_id}' AND guild_id = '${guild.id}'`);
                                             }
-                                            user.assigned = await user.assignDonorRole();
+                                            user.assigned = await user.assignRole(guild.donorRole);
                                             if (user.assigned) {
                                                 console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${customer.userName} (${record.user_id}) found without a Donor Role and assigned Role.`);
                                                 user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
@@ -396,19 +396,19 @@ function membersAudit(guild, members) {
                     user_name: members[m].user.username,
                     guild_id: guild.id,
                     guild_name: guild.name,
-                    donor_role: guild.role
+                    donor_role: guild.donorRole
                 });
                 const user = new DiscordClient({
                     user_id: members[m].id,
                     user_name: members[m].user.username,
                     guild_id: guild.id,
                     guild_name: guild.name,
-                    donor_role: guild.role
+                    donor_role: guild.donorRole
                 });
                 const record = await customer.fetchRecordByUser();
                 if (record) {
                     if (record.plan_id !== 'Lifetime') {
-                        record.donor_role = guild.role;
+                        record.donor_role = guild.donorRole;
                         customer.setClientInfo(record);
                         user.setClientInfo(record);
                         const userRoles = await user.getUserRoles();
@@ -417,7 +417,7 @@ function membersAudit(guild, members) {
                                 if (record.plan_id === guild.recurring_id || record.plan_id === guild.onetime_id || record.plan_id === guild.alt_plan_id) {
                                     const valid = await customer.validateCustomer();
                                     if (valid) {
-                                        user.assigned = await user.assignDonorRole();
+                                        user.assigned = await user.assignRole(guild.donorRole);
                                         if (user.assigned) {
                                             console.log(`[MapJS] [${getTime()}] [services/stripe.js] ${user.userName} (${user.userId}) found without a Donor Role.`);
                                             user.sendChannelEmbed(guild.stripe_log_channel, 'FF0000', 'Customer found without a Donor Role 🔎', '');
@@ -468,7 +468,7 @@ function membersAudit(guild, members) {
 
     
 ontime({
-    cycle: ['00:00:00', '06:00:00', '12:00:00', '18:00:00']
+    cycle: ['00:00']
 },
 async function (ot) {
     console.info(`[MapJS] [${getTime()}] [services/stripe.js] Starting Audits...`);

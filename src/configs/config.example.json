@@ -4,6 +4,7 @@
     "title": "MapJS",
     "headerTitle": "MapJS - NodeJS Map Replacement",
     "locale": "en",
+    "dateTimeLocale": "en-US",
     "style": "dark",
     "sessionSecret": "98ki^e72~!@#(85o3kXLI*#c9wu5l!Z",
     "homepage": {
@@ -39,7 +40,8 @@
             "password": "pass123!",
             "database": "rdmdb",
             "charset": "utf8mb4",
-            "sessionTable": "sessions"
+            "sessionTable": "sessions",
+            "arScanColumn": true
         },
         "manualdb": {
             "host": "127.0.0.1",
@@ -61,6 +63,16 @@
         "allowedGuilds": [],
         "blockedGuilds": [],
         "allowedUsers": [],
+        "areaRestrictions": {
+            "role1": {
+                "roles": [],
+                "areas": []
+            },
+            "role2": {
+                "roles": [],
+                "areas": []
+            }
+        },
         "perms": {
             "map": {
                 "enabled": true,

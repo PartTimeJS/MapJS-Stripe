@@ -1,13 +1,13 @@
-"use strict";
+'use strict';
 
-const session = require("express-session");
-const MySQLStore = require("express-mysql-session")(session);
+const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
 
-const config = require("../services/config.js");
-const MySQLConnector = require("../services/mysql.js");
+const config = require('../services/config.js');
+const MySQLConnector = require('../services/mysql.js');
 
 const { scanner, manualdb } = config.db;
-const dbSelection = manualdb.useFor.includes("session") ? manualdb : scanner;
+const dbSelection = manualdb.useFor.includes('session') ? manualdb : scanner;
 const db = new MySQLConnector(dbSelection);
 
 // MySQL session store

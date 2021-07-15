@@ -1,7 +1,7 @@
 /* eslint-disable no-async-promise-executor */
 /* global BigInt */
 'use strict';
-
+const requireAll = require('require-all');
 const moment = require('moment');
 const fs = require('fs-extra');
 
@@ -17,9 +17,22 @@ const client = new Discord.Client();
 client.on('ready', async () => {
     console.log(`[MapJS] [${getTime()}] [services/stripe.js] Logged in as ${client.user.tag}!`);
     client.user.setPresence({ activity: { name: config.discord.status, type: 3 } });
+    //client.loadEvents();
 });
 
 client.login(config.discord.botToken);
+
+/*client.loadEvents = async () => {
+    const files = requireAll({
+        dirname: `${__dirname}/events`,
+        filter: /^(?!-)(.+)\.js$/
+    });
+    client.removeAllListeners();
+    for (const name in files) {
+        const event = files[name];
+        client.on(name, event.bind(null, client));
+    }
+};*/
 
 class DiscordClient {
 
@@ -129,7 +142,8 @@ class DiscordClient {
             portals: false,
             scanAreas: false,
             weather: false,
-            devices: false
+            devices: false,
+            areaRestrictions: []
         };
         const guilds = await this.getGuilds();
         if (!guilds) {
@@ -258,7 +272,7 @@ class DiscordClient {
         return new Promise(async (resolve) => {
             const guild = await client.guilds.cache
                 .get(this.guildId);
-            const members = guild.roles.cache
+            const members = guild.donorRoles.cache
                 .find(role => role.id === this.donorRole)
                 .members
                 .map(m => m);
@@ -319,13 +333,20 @@ class DiscordClient {
     }
 
 
-    assignDonorRole() {
+    assignRole(role_id) {
+        const member = client.guilds.cache.get(this.guildId).members.cache.get(this.userId);
+        if(!member){
+            console.error("discord.js 339 NO MEMBER FOUND!")
+        }
+        const role = client.guilds.cache.get(this.guildId).roles.cache.get(role_id);
         return new Promise((resolve) => {
-            const member = client.guilds.cache.get(this.guildId).members.cache.get(this.userId);
+            if(!role){
+                console.error("discord.js 344 NO ROLE FOUND!")
+            }
             if (!member) {
                 return resolve(false);
-            } else if (!member.roles.cache.has(this.donorRole.toString())) {
-                member.roles.add(this.donorRole);
+            } else if (!member.roles.cache.has(role_id)) {
+                member.roles.add(role);
                 console.log(`[MapJS] [${getTime()}] [services/discord.js] Assigned donor role to ${this.userName} (${this.userId}).`);
                 return resolve(true);
             } else {
@@ -333,6 +354,7 @@ class DiscordClient {
             }
         });
     }
+
 
 
     removeDonorRole() {
