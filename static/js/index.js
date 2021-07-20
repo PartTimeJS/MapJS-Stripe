@@ -2222,6 +2222,16 @@ function loadData () {
         data: data,
         type: 'POST',
         async: true,
+        statusCode: {
+            401: function() {
+                console.error("401 Returned. Invalid Session.");
+                document.location.href = "/login";
+            },
+            403: function() {
+                console.error("403 Returned. Session Limit Reached.");
+                document.location.href = "/sessionlimit";
+            }
+        },
         success: function (data) {
             const gyms = data.data.gyms;
             let ts = Math.round((new Date()).getTime() / 1000);
